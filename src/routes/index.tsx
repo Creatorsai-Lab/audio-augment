@@ -175,32 +175,9 @@ export function Studio() {
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Clarity <span className="text-accent">Audio Desk</span>
+      <header className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight text-accent text-center">Audio Augment
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Spectral noise removal and a full voice rack — everything runs locally, no uploads.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {Object.keys(PRESETS).map((name) => (
-            <button
-              key={name}
-              onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
-              className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
-            >
-              {name}
-            </button>
-          ))}
-          <button
-            onClick={() => setSettings(defaultSettings)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-          >
-            Reset
-          </button>
-        </div>
       </header>
 
       <section
@@ -274,6 +251,23 @@ export function Studio() {
           </button>
         </div>
       </section>
+          <div className="flex gap-2 mt-10 items-center justify-center">
+          {Object.keys(PRESETS).map((name) => (
+            <button
+              key={name}
+              onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
+              className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
+            >
+              {name}
+            </button>
+          ))}
+          <button
+            onClick={() => setSettings(defaultSettings)}
+            className="rounded-md border border-border px-3 py-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            Reset
+          </button>
+        </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Panel title="Noise cleanup">
@@ -450,8 +444,7 @@ export function Studio() {
       </div>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        Cleanup uses STFT spectral gating with per-bin noise estimation — classic DSP, no language
-        models involved.
+        © All right reserved 2026 | Creators AI Lab
       </p>
     </main>
   );
