@@ -1,0 +1,146 @@
+@import "tw-animate-css";
+@import "tailwindcss";
+@source "../src";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: #fff9f3;
+  --foreground: #645a51;
+  --card: #ffffff;
+  --card-foreground: #645a51;
+  --popover: #ffffff;
+  --popover-foreground: #645a51;
+  --primary: #c75d3a;
+  --primary-foreground: #fff9f3;
+  --secondary: #af6d58;
+  --secondary-foreground: #fff9f3;
+  --muted: #eae6e1;
+  --muted-foreground: #8b7f75;
+  --accent: #c75d3a;
+  --accent-foreground: #fff9f3;
+  --destructive: #b5403a;
+  --destructive-foreground: #fff9f3;
+  --border: #e8dfd3;
+  --input: #e8dfd3;
+  --ring: #c75d3a;
+  --chart-1: #c75d3a;
+  --chart-2: #af6d58;
+  --chart-3: #5a7a3e;
+  --chart-4: #d4a04c;
+  --chart-5: #6b7b8c;
+  --sidebar: #fff9f3;
+  --sidebar-foreground: #645a51;
+  --sidebar-primary: #c75d3a;
+  --sidebar-primary-foreground: #fff9f3;
+  --sidebar-accent: #eae6e1;
+  --sidebar-accent-foreground: #645a51;
+  --sidebar-border: #e8dfd3;
+  --sidebar-ring: #c75d3a;
+
+  --gradient-rack: linear-gradient(180deg, #fff9f3 0%, #f7eee5 100%);
+  --shadow-panel: 0 1px 3px rgba(139, 63, 35, 0.06), 0 4px 16px rgba(139, 63, 35, 0.08);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background: var(--gradient-rack);
+    background-attachment: fixed;
+    color: var(--color-foreground);
+    font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@utility fader {
+  appearance: none;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-accent) var(--pct, 0%),
+    var(--color-secondary) var(--pct, 0%)
+  );
+  outline: none;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    border: 2px solid var(--color-card);
+    box-shadow: 0 2px 6px oklch(0 0 0 / 60%);
+    cursor: pointer;
+  }
+
+  &::-moz-range-thumb {
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid var(--color-card);
+    border-radius: 999px;
+    background: var(--color-primary);
+    cursor: pointer;
+  }
+}
