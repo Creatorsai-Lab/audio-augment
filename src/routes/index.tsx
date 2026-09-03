@@ -2,8 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "../components/Panel";
 import { Knob } from "../components/Knob";
-import { defaultSettings, renderProcessed, type Settings } from "../lib/audio/process";
-import { encodeWav } from "../lib/audio/wav";
+import {
+  defaultSettings,
+  renderAugmented,
+  renderCleaned,
+  type Settings,
+} from "../lib/audio/process";
+import { encodeMp3 } from "../lib/audio/mp3";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,21 +72,42 @@ export function Studio() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [fileName, setFileName] = useState<string | null>(null);
   const [original, setOriginal] = useState<AudioBuffer | null>(null);
-  const [processed, setProcessed] = useState<AudioBuffer | null>(null);
+  const [cleaned, setCleaned] = useState<AudioBuffer | null>(null);
+  const [augmented, setAugmented] = useState<AudioBuffer | null>(null);
+  const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("cleaned");
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [playing, setPlaying] = useState<"none" | "original" | "processed">("none");
+  const [playing, setPlaying] = useState<"none" | "original" | "cleaned">("none");
 
   const inRef = useRef<HTMLCanvasElement>(null);
   const outRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<{ ctx: AudioContext; node: AudioBufferSourceNode } | null>(null);
+  const playerRef = useRef<{
+    ctx: AudioContext;
+    node: AudioBufferSourceNode;
+    low: BiquadFilterNode;
+    mid: BiquadFilterNode;
+    high: BiquadFilterNode;
+    compressor: DynamicsCompressorNode;
+    output: GainNode;
+  } | null>(null);
   const operationRef = useRef(0);
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) =>
     setSettings((s) => ({ ...s, [k]: v }));
 
   useEffect(() => drawWave(inRef.current, original, "oklch(0.55 0.02 250)"), [original]);
-  useEffect(() => drawWave(outRef.current, processed, "oklch(0.8 0.13 190)"), [processed]);
+  useEffect(() => drawWave(outRef.current, cleaned, "#c75d3a"), [cleaned]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.low.gain.value = settings.eqLow;
+    player.mid.gain.value = settings.eqMid;
+    player.high.gain.value = settings.eqHigh;
+    player.compressor.threshold.value = -6 - 30 * settings.compressor;
+    player.compressor.ratio.value = 1.5 + 10 * settings.compressor;
+    player.output.gain.value = Math.pow(10, settings.output / 20);
+  }, [settings]);
 
   const stop = useCallback(() => {
     const player = playerRef.current;
@@ -97,13 +123,37 @@ export function Studio() {
     setPlaying("none");
   }, []);
 
-  const play = (buffer: AudioBuffer | null, which: "original" | "processed") => {
+  const play = (buffer: AudioBuffer | null, which: "original" | "cleaned") => {
     stop();
     if (!buffer) return;
     const ctx = new AudioContext();
     const node = ctx.createBufferSource();
     node.buffer = buffer;
-    node.connect(ctx.destination);
+    const low = ctx.createBiquadFilter();
+    low.type = "lowshelf";
+    low.frequency.value = 200;
+    low.gain.value = settings.eqLow;
+    const mid = ctx.createBiquadFilter();
+    mid.type = "peaking";
+    mid.frequency.value = 1200;
+    mid.Q.value = 0.9;
+    mid.gain.value = settings.eqMid;
+    const high = ctx.createBiquadFilter();
+    high.type = "highshelf";
+    high.frequency.value = 5000;
+    high.gain.value = settings.eqHigh;
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -6 - 30 * settings.compressor;
+    compressor.ratio.value = 1.5 + 10 * settings.compressor;
+    const output = ctx.createGain();
+    output.gain.value = Math.pow(10, settings.output / 20);
+    node
+      .connect(low)
+      .connect(mid)
+      .connect(high)
+      .connect(compressor)
+      .connect(output)
+      .connect(ctx.destination);
     node.onended = () => {
       if (playerRef.current?.node !== node) return;
       playerRef.current = null;
@@ -111,7 +161,7 @@ export function Studio() {
       setPlaying("none");
     };
     node.start();
-    playerRef.current = { ctx, node };
+    playerRef.current = { ctx, node, low, mid, high, compressor, output };
     setPlaying(which);
   };
 
@@ -125,8 +175,12 @@ export function Studio() {
       ctx = new AudioContext();
       const buf = await ctx.decodeAudioData(await file.arrayBuffer());
       if (operation !== operationRef.current) return;
+      const clean = await renderCleaned(buf, defaultSettings, (stage) => setStatus(stage + "…"));
+      if (operation !== operationRef.current) return;
       setOriginal(buf);
-      setProcessed(null);
+      setCleaned(clean);
+      setAugmented(null);
+      setSelectedSource("cleaned");
       setFileName(file.name);
       setStatus(
         `${file.name} · ${buf.duration.toFixed(1)}s · ${buf.sampleRate} Hz · ${buf.numberOfChannels}ch`,
@@ -142,16 +196,17 @@ export function Studio() {
   };
 
   const process = async () => {
-    if (!original) return;
+    const source = selectedSource === "original" ? original : cleaned;
+    if (!source) return;
     const operation = ++operationRef.current;
     stop();
     setBusy(true);
     setStatus("Processing…");
     await new Promise((r) => setTimeout(r, 20));
     try {
-      const result = await renderProcessed(original, settings, (s) => setStatus(s + "…"));
+      const result = await renderAugmented(source, settings, (s) => setStatus(s + "…"));
       if (operation === operationRef.current) {
-        setProcessed(result);
+        setAugmented(result);
         setStatus("Processed. Preview or export below.");
       }
     } catch (err) {
@@ -163,21 +218,27 @@ export function Studio() {
     }
   };
 
-  const download = () => {
-    if (!processed) return;
-    const url = URL.createObjectURL(encodeWav(processed));
+  const download = (buffer: AudioBuffer | null, suffix: string) => {
+    if (!buffer) return;
+    const url = URL.createObjectURL(encodeMp3(buffer));
     const a = document.createElement("a");
     a.href = url;
-    a.download = (fileName?.replace(/\.[^.]+$/, "") ?? "audio") + "-clarity.wav";
+    a.download = (fileName?.replace(/\.[^.]+$/, "") ?? "audio") + suffix + ".mp3";
     a.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
       <header className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-accent text-center">Audio Augment
-          </h1>
+        <div className="flex items-center justify-center gap-3">
+          <img
+            src="./audio_augment_logo.webp"
+            alt="Audio Augment logo"
+            className="h-12 w-12 object-contain"
+          />
+          <h1 className="text-2xl font-bold tracking-tight text-accent">Audio Augment</h1>
+        </div>
       </header>
 
       <section
@@ -210,23 +271,23 @@ export function Studio() {
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <div>
             <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-              Input
+              Original audio
             </p>
             <canvas ref={inRef} className="h-20 w-full rounded bg-secondary/60" />
           </div>
           <div>
-            <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-accent">Processed</p>
+            <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-accent">Cleaned audio</p>
             <canvas ref={outRef} className="h-20 w-full rounded bg-secondary/60" />
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            disabled={!original || busy}
+            disabled={!cleaned || busy}
             onClick={process}
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
           >
-            {busy ? "Working…" : "Clean & apply effects"}
+            {busy ? "Working…" : "Apply augmentation"}
           </button>
           <button
             disabled={!original}
@@ -236,38 +297,88 @@ export function Studio() {
             {playing === "original" ? "Stop" : "Play original"}
           </button>
           <button
-            disabled={!processed}
-            onClick={() => (playing === "processed" ? stop() : play(processed, "processed"))}
-            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-          >
-            {playing === "processed" ? "Stop" : "Play processed"}
-          </button>
-          <button
-            disabled={!processed}
-            onClick={download}
+            disabled={!cleaned}
+            onClick={() => download(cleaned, "-cleaned")}
             className="rounded-md border border-accent px-4 py-2 text-sm text-accent disabled:opacity-40"
           >
-            Export WAV
+            Download cleaned audio
           </button>
         </div>
       </section>
-          <div className="flex gap-2 mt-10 items-center justify-center">
-          {Object.keys(PRESETS).map((name) => (
+
+      <section className="mt-6 rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              Audio editor preview
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose the source for the live augmentation preview.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
             <button
-              key={name}
-              onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
-              className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
+              disabled={!original}
+              onClick={() => setSelectedSource("original")}
+              className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "original" ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}
             >
-              {name}
+              Original audio
             </button>
-          ))}
-          <button
-            onClick={() => setSettings(defaultSettings)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-          >
-            Reset
-          </button>
+            <button
+              disabled={!cleaned}
+              onClick={() => setSelectedSource("cleaned")}
+              className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "cleaned" ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}
+            >
+              Cleaned audio
+            </button>
+            <button
+              disabled={!(selectedSource === "original" ? original : cleaned)}
+              onClick={() =>
+                play(selectedSource === "original" ? original : cleaned, selectedSource)
+              }
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
+            >
+              {playing === selectedSource ? "Stop preview" : "Play live preview"}
+            </button>
+          </div>
         </div>
+        <div className="mt-4 rounded-md border border-border bg-muted/50 p-4">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{selectedSource === "original" ? "Original audio" : "Cleaned audio"}</span>
+            <span>{playing === selectedSource ? "Playing with current controls" : "Ready"}</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
+            <div
+              className={`h-full bg-accent transition-all ${playing === selectedSource ? "w-2/3" : "w-0"}`}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        {Object.keys(PRESETS).map((name) => (
+          <button
+            key={name}
+            onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
+            className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
+          >
+            {name}
+          </button>
+        ))}
+        <button
+          onClick={() => setSettings(defaultSettings)}
+          className="rounded-md border border-border px-3 py-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          Reset
+        </button>
+        <button
+          disabled={!augmented}
+          onClick={() => download(augmented, "-augmented")}
+          className="rounded-md border border-accent bg-accent px-3 py-1.5 text-xs uppercase tracking-widest text-accent-foreground disabled:opacity-40"
+        >
+          Download augmented audio
+        </button>
+      </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Panel title="Noise cleanup">

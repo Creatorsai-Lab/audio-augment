@@ -76,7 +76,7 @@ function saturationCurve(amount: number): Float32Array<ArrayBuffer> {
 }
 
 /** Offline (faster than realtime) render of the whole chain. */
-export async function renderProcessed(
+export async function renderCleaned(
   source: AudioBuffer,
   s: Settings,
   onStage?: (label: string) => void,
@@ -84,14 +84,37 @@ export async function renderProcessed(
   const sr = source.sampleRate;
   const ch = source.numberOfChannels;
 
-  // --- stage 1: offline-thread-free DSP (denoise + pitch/harmony source) ---
   onStage?.("Analysing noise profile");
+  const ctx = new OfflineAudioContext(ch, source.length, sr);
+  const cleaned = ctx.createBuffer(ch, source.length, sr);
+  for (let c = 0; c < ch; c++) {
+    let data = source.getChannelData(c);
+    if (s.denoise > 0 || s.hiss > 0 || s.breath > 0) {
+      data = denoiseChannel(new Float32Array(data), sr, {
+        amount: s.denoise,
+        hiss: s.hiss,
+        breath: s.breath,
+      });
+    }
+    cleaned.copyToChannel(data, c);
+  }
+  onStage?.("Done");
+  return cleaned;
+}
+
+/** Offline render of the augmentation rack, starting with an already-cleaned buffer. */
+export async function renderAugmented(
+  source: AudioBuffer,
+  s: Settings,
+  onStage?: (label: string) => void,
+): Promise<AudioBuffer> {
+  const sr = source.sampleRate;
+  const ch = source.numberOfChannels;
+
+  onStage?.("Preparing augmentation");
   const cleaned: Float32Array<ArrayBuffer>[] = [];
   for (let c = 0; c < ch; c++) {
     let data = new Float32Array(source.getChannelData(c));
-    if (s.denoise > 0 || s.hiss > 0 || s.breath > 0) {
-      data = denoiseChannel(data, sr, { amount: s.denoise, hiss: s.hiss, breath: s.breath });
-    }
     if (s.pitch !== 0) data = pitchShiftChannel(data, s.pitch);
     cleaned.push(data);
   }

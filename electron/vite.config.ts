@@ -9,6 +9,7 @@ const electronRoot = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   root: electronRoot,
   base: "./",
+  publicDir: path.resolve(electronRoot, "..", "public"),
   plugins: [react(), tailwindcss()],
   build: {
     outDir: path.resolve(electronRoot, "..", "desktop-dist"),
