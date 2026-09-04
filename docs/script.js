@@ -13,7 +13,7 @@
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
-  const FONT_SIZE = 13;
+  const FONT_SIZE = 10;
   const CHARS = "01";
   const COLOR_BASE = "rgba(199,93,58,";
   const COLOR_DIM = "rgba(175,109,88,";
@@ -27,7 +27,7 @@
     columns = Array.from({ length: count }, () => ({
       y: Math.random() * -H,
       speed: 1.8 + Math.random() * 1.3,
-      opacity: 0.22 + Math.random() * 0.32,
+      opacity: 0.22 + Math.random() * 0.4,
       bright: Math.random() < 0.12,
     }));
   }

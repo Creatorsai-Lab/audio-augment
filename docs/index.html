@@ -33,17 +33,15 @@
   <!-- Binary rain canvas (background) -->
   <canvas id="binary-canvas"></canvas>
 
-
-
-  <!-- NAV -->
-  <nav class="nav glass" role="navigation" aria-label="Main navigation">
+  <!-- Glass overlay — blurs the binary rain canvas behind page content -->
+  <div class="glass-overlay" aria-hidden="true"></div>
+  <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="nav-inner">
       <a href="#" class="nav-brand" aria-label="Audio Augment home">
         <img src="../public/audio_augment_logo.webp" alt="Audio Augment logo" width="32" height="32" />
         <span class="brand-text accent">Audio Augment</span>
       </a>
       <ul class="nav-links" role="list">
-        <li><a href="#features">Features</a></li>
         <li><a href="#screenshot">Interface</a></li>
         <li><a href="#architecture">Stack</a></li>
         <li><a href="#download">Download</a></li>
@@ -71,11 +69,11 @@
       </p>
 
       <div class="hero-tags fade-in delay-3" aria-label="Key features">
-        <span class="tag">🔇 Noise Removal</span>
-        <span class="tag">🎙 Voice Cleanup</span>
-        <span class="tag">🎛 EQ + Effects</span>
-        <span class="tag">📴 Offline</span>
-        <span class="tag">🆓 Free</span>
+        <span class="badge">🔇 Noise Removal</span>
+        <span class="badge">🎙 Voice Cleanup</span>
+        <span class="badge">🎛 EQ + Effects</span>
+        <span class="badge">📴 Offline</span>
+        <span class="badge">🆓 Free</span>
       </div>
 
       <div class="hero-cta fade-in delay-4">
@@ -91,7 +89,6 @@
   <!-- FEATURES -->
   <section class="section" id="features" aria-labelledby="features-heading">
     <div class="container">
-      <div class="section-label mono">// capabilities</div>
       <h2 class="section-title" id="features-heading">Two-Stage Audio Processing</h2>
       <p class="section-sub">Clean first, augment second. Each stage is independent — skip either, chain both.</p>
 
@@ -147,8 +144,7 @@
   <!-- SCREENSHOT -->
   <section class="section section-muted" id="screenshot" aria-labelledby="screenshot-heading">
     <div class="container">
-      <div class="section-label mono">// interface</div>
-      <h2 class="section-title" id="screenshot-heading">Clean. Minimal. Precise.</h2>
+      <h2 class="section-title" id="screenshot-heading">Interface: Clean. Minimal. Precise.</h2>
       <p class="section-sub">Everything you need — nothing you don't. Waveform preview, knob controls, one-click clean audio.</p>
       <div class="screenshot-wrap fade-in">
         <img
@@ -158,7 +154,6 @@
           loading="lazy"
           width="1200"
         />
-        <div class="screenshot-glow" aria-hidden="true"></div>
       </div>
     </div>
   </section>
@@ -166,8 +161,7 @@
   <!-- ARCHITECTURE -->
   <section class="section" id="architecture" aria-labelledby="arch-heading">
     <div class="container">
-      <div class="section-label mono">// architecture</div>
-      <h2 class="section-title" id="arch-heading">Built on the Open Web</h2>
+      <h2 class="section-title" id="arch-heading">Architecure: Built on the Open Web</h2>
       <p class="section-sub">No native audio libraries. No cloud APIs. Pure Web Audio API — same engine in browser and desktop.</p>
 
       <div class="arch-grid">
@@ -197,14 +191,14 @@
       </div>
 
       <div class="stack-row fade-in">
-        <span class="stack-badge">React 19</span>
-        <span class="stack-badge">TanStack Start</span>
-        <span class="stack-badge">Tailwind CSS v4</span>
-        <span class="stack-badge">Radix UI</span>
-        <span class="stack-badge">Web Audio API</span>
-        <span class="stack-badge">lamejs</span>
-        <span class="stack-badge">Electron</span>
-        <span class="stack-badge">Cloudflare Workers</span>
+        <span class="badge">React 19</span>
+        <span class="badge">TanStack Start</span>
+        <span class="badge">Tailwind CSS v4</span>
+        <span class="badge">Radix UI</span>
+        <span class="badge">Web Audio API</span>
+        <span class="badge">lamejs</span>
+        <span class="badge">Electron</span>
+        <span class="badge">Cloudflare Workers</span>
       </div>
     </div>
   </section>
@@ -212,17 +206,17 @@
   <!-- DOWNLOAD -->
   <section class="section section-warm" id="download" aria-labelledby="download-heading">
     <div class="container center">
-      <div class="section-label mono">// get started</div>
+    
       <h2 class="section-title" id="download-heading">Download &amp; Run</h2>
 
       <div class="download-grid">
-        <div class="download-card glass fade-in">
+        <div class="download-card fade-in">
           <div class="download-icon" aria-hidden="true">🪟</div>
           <h3>Windows Installer</h3>
           <p class="mono small">audio-augment-x.x.x-x64.nsis.7z</p>
           <ol class="download-steps">
             <li>Download from <a href="https://github.com/your-username/audio-augment/releases" target="_blank" rel="noopener">Releases</a></li>
-            <li>Extract the <code>.7z</code> archive</li>
+            <li>Extract the .7z archive</li>
             <li>Run the installer</li>
             <li>Launch from desktop shortcut</li>
           </ol>
@@ -233,16 +227,23 @@
           <div class="download-icon" aria-hidden="true">⌨️</div>
           <h3>Run from Source</h3>
           <p class="mono small">Node.js 20+ required</p>
-          <pre class="code-block" role="region" aria-label="Terminal commands"><code><span class="code-comment"># clone &amp; install</span>
-git clone https://github.com/your-username/audio-augment
-cd audio-augment
-npm install
-
-<span class="code-comment"># web (browser)</span>
-npm run dev
-
-<span class="code-comment"># desktop (Electron)</span>
-npm run desktop</code></pre>
+          <div class="code-block">
+            <span class="code-comment"># clone</span>
+            git clone https://github.com/your-username/audio-augment
+            cd audio-augment
+          </div>
+          <div class="code-block">
+            <span class="code-comment"># Install</span>
+            npm install
+          </div>
+          <div class="code-block">
+            <span class="code-comment"># web (browser)</span>
+            npm run dev
+          </div>
+          <div class="code-block">
+            <span class="code-comment"># desktop (Electron)</span>
+            npm run desktop
+          </div>
         </div>
       </div>
     </div>
@@ -251,10 +252,9 @@ npm run desktop</code></pre>
   <!-- CONTRIBUTE -->
   <section class="section" id="contribute" aria-labelledby="contribute-heading">
     <div class="container center">
-      <div class="section-label mono">// open source</div>
       <h2 class="section-title" id="contribute-heading">Contribute</h2>
       <p class="section-sub" style="max-width:560px;margin-inline:auto">
-        The audio engine lives in <code>src/lib/audio/</code>. Good first areas:
+        <i>Yes! It is opensource and we welcome for contributions.</i>The audio engine lives in <div>src/lib/audio/</div>. Good first areas:
         gate &amp; limiter, Mac/Linux build targets, waveform zoom, custom preset management.
       </p>
       <div class="contrib-steps fade-in">
@@ -265,7 +265,7 @@ npm run desktop</code></pre>
         <div class="contrib-arrow" aria-hidden="true">→</div>
         <div class="contrib-step">
           <span class="contrib-num mono">02</span>
-          <span>Make your changes in <code>src/lib/audio/</code></span>
+          <span>Make your changes in <div>/src/</div></span>
         </div>
         <div class="contrib-arrow" aria-hidden="true">→</div>
         <div class="contrib-step">
@@ -278,19 +278,13 @@ npm run desktop</code></pre>
           <span>Open a pull request</span>
         </div>
       </div>
-      <a href="https://github.com/your-username/audio-augment" class="btn-outline" target="_blank" rel="noopener" style="margin-top:2.5rem">View on GitHub →</a>
     </div>
   </section>
 
   <!-- FOOTER -->
   <footer class="footer" role="contentinfo">
     <div class="container footer-inner">
-      <div class="footer-brand">
-        <img src="../public/audio_augment_logo.webp" alt="" width="24" height="24" aria-hidden="true" />
-        <span class="mono small">Audio Augment · by Creators AI Lab</span>
-      </div>
-      <p class="mono small muted">MIT License · no accounts · no internet required</p>
-    </div>
+        © All right reserved • Audio Augment Studio | Creators AI Lab • 2026
   </footer>
 
   <script src="script.js"></script>
