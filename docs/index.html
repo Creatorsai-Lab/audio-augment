@@ -1,59 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Augment by Creators AI Lab</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<style>
-    :root {
-        --radius: 0.625rem;
-        --background: #fff9f3;
-        --foreground: #645a51;
-        --card: #ffffff;
-        --card-foreground: #645a51;
-        --popover: #ffffff;
-        --popover-foreground: #645a51;
-        --primary: #c75d3a;
-        --primary-foreground: #fff9f3;
-        --secondary: #af6d58;
-        --secondary-foreground: #fff9f3;
-        --muted: #eae6e1;
-        --muted-foreground: #8b7f75;
-        --accent: #c75d3a;
-        --accent-foreground: #fff9f3;
-        --destructive: #b5403a;
-        --destructive-foreground: #fff9f3;
-        --border: #e8dfd3;
-        --input: #e8dfd3;
-        --ring: #c75d3a;
-        --chart-1: #c75d3a;
-        --chart-2: #af6d58;
-        --chart-3: #5a7a3e;
-        --chart-4: #d4a04c;
-        --chart-5: #6b7b8c;
-        --sidebar: #fff9f3;
-        --sidebar-foreground: #645a51;
-        --sidebar-primary: #c75d3a;
-        --sidebar-primary-foreground: #fff9f3;
-        --sidebar-accent: #eae6e1;
-        --sidebar-accent-foreground: #645a51;
-        --sidebar-border: #e8dfd3;
-        --sidebar-ring: #c75d3a;
-      
-        --gradient-rack: linear-gradient(180deg, #fff9f3 0%, #f7eee5 100%);
-        --shadow-panel: 0 1px 3px rgba(139, 63, 35, 0.06), 0 4px 16px rgba(139, 63, 35, 0.08);
-      }
-      
-    body {
-        background: var(--gradient-rack);
-        background-attachment: fixed;
-        color: var(--color-foreground);
-        font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-    }
-</style>
+  <!-- SEO -->
+  <title>Audio Augment — Offline Audio Noise Removal & Voice Studio</title>
+  <meta name="description" content="Remove background noise, clean audio, and shape your voice with professional effects — entirely offline. Free desktop app and web tool for content creators." />
+  <meta name="keywords" content="audio noise removal, remove background noise, clean audio, audio editor, voice cleanup, noise reduction, offline audio tool, audio augmentation" />
+  <meta name="author" content="Creators AI Lab" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Audio Augment — Offline Audio Noise Removal & Voice Studio" />
+  <meta property="og:description" content="Strip background noise, hiss and breaths from any MP3 or WAV, then shape your voice with EQ, pitch, reverb, delay and more. 100% offline." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="../public/audio_augment_logo.webp" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Audio Augment — Offline Audio Noise Removal" />
+  <meta name="twitter:description" content="Clean audio noise removal and voice effects studio. No internet, no account needed." />
+
+  <link rel="icon" href="../public/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    
+
+  <!-- Binary rain canvas (background) -->
+  <canvas id="binary-canvas"></canvas>
+
+  <!-- Waveform pathway (SVG) -->
+  <div class="waveform-path-wrap" aria-hidden="true">
+    <svg id="waveform-svg" viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path id="waveform-path" fill="none" stroke="rgba(199,93,58,0.18)" stroke-width="2"/>
+      <path id="waveform-path-glow" fill="none" stroke="rgba(199,93,58,0.06)" stroke-width="6"/>
+    </svg>
+  </div>
+
+  <!-- NAV -->
+  <nav class="nav glass" role="navigation" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand" aria-label="Audio Augment home">
+        <img src="../public/audio_augment_logo.webp" alt="Audio Augment logo" width="32" height="32" />
+        <span class="brand-text">Audio<span class="accent"> Augment</span></span>
+      </a>
+      <ul class="nav-links" role="list">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#screenshot">Interface</a></li>
+        <li><a href="#architecture">Stack</a></li>
+        <li><a href="#download">Download</a></li>
+        <li><a href="https://github.com/your-username/audio-augment" class="btn-ghost" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero section" id="hero">
+    <div class="container">
+
+      <div class="hero-eyebrow mono fade-in">
+        <span class="binary-text" data-text="01000001 01010101 01000100 01001001 01001111">by Creators AI Lab</span>
+      </div>
+
+      <h1 class="hero-title fade-in delay-1">
+        Remove Background<br/>
+        <span class="gradient-text">Noise from Audio</span>
+      </h1>
+
+      <p class="hero-sub fade-in delay-2">
+        Strip noise, hiss and breaths from any MP3 or WAV — then shape your voice with a full
+        effects rack. Runs&nbsp;100%&nbsp;offline. No account, no upload, no waiting.
+      </p>
+
+      <div class="hero-tags fade-in delay-3" aria-label="Key features">
+        <span class="tag">🔇 Noise Removal</span>
+        <span class="tag">🎙 Voice Cleanup</span>
+        <span class="tag">🎛 EQ + Effects</span>
+        <span class="tag">📴 Offline</span>
+        <span class="tag">🆓 Free</span>
+      </div>
+
+      <div class="hero-cta fade-in delay-4">
+        <a href="#download" class="btn-primary">Download for Windows</a>
+        <a href="https://github.com/your-username/audio-augment" class="btn-outline" target="_blank" rel="noopener">View Source</a>
+      </div>
+
+      <!-- Live waveform visualiser -->
+      <div class="hero-wave fade-in delay-4" aria-hidden="true">
+        <canvas id="hero-wave-canvas" width="900" height="80"></canvas>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- FEATURES -->
+  <section class="section" id="features" aria-labelledby="features-heading">
+    <div class="container">
+      <div class="section-label mono">// capabilities</div>
+      <h2 class="section-title" id="features-heading">Two-Stage Audio Processing</h2>
+      <p class="section-sub">Clean first, augment second. Each stage is independent — skip either, chain both.</p>
+
+      <div class="features-grid">
+
+        <article class="card card-glow fade-in" aria-labelledby="stage1-heading">
+          <div class="card-num mono">01</div>
+          <h3 class="card-title" id="stage1-heading">Noise &amp; Background Removal</h3>
+          <p class="card-desc">Drop your audio and <strong>remove background noise</strong> in seconds. Works on recordings, podcasts, voice-overs and calls.</p>
+          <ul class="card-list" role="list">
+            <li><span class="dot"></span>Background noise reduction</li>
+            <li><span class="dot"></span>Hiss &amp; hum removal</li>
+            <li><span class="dot"></span>Breath reduction</li>
+            <li><span class="dot"></span>Sibilance / de-ess control</li>
+          </ul>
+        </article>
+
+        <article class="card card-glow fade-in delay-1" aria-labelledby="stage2-heading">
+          <div class="card-num mono">02</div>
+          <h3 class="card-title" id="stage2-heading">Voice Augmentation Rack</h3>
+          <p class="card-desc">Shape your <strong>clean audio</strong> with a full studio effects rack. Apply presets or dial every knob manually.</p>
+          <ul class="card-list" role="list">
+            <li><span class="dot"></span>3-Band EQ (Low / Mid / High)</li>
+            <li><span class="dot"></span>Pitch shift &amp; Harmonizer</li>
+            <li><span class="dot"></span>Compressor &amp; Saturation</li>
+            <li><span class="dot"></span>Reverb, Delay, Chorus</li>
+          </ul>
+        </article>
+
+        <article class="card card-glow fade-in delay-2" aria-labelledby="presets-heading">
+          <div class="card-num mono">03</div>
+          <h3 class="card-title" id="presets-heading">Built-in Presets</h3>
+          <p class="card-desc">One-click starting points for the most common use cases. Fine-tune from there.</p>
+          <div class="preset-chips" role="list" aria-label="Available presets">
+            <span class="chip" role="listitem">🎙 Podcast</span>
+            <span class="chip" role="listitem">📻 Radio</span>
+            <span class="chip" role="listitem">🎬 Cinematic</span>
+            <span class="chip" role="listitem">🤖 Robot</span>
+          </div>
+        </article>
+
+        <article class="card card-glow fade-in delay-3" aria-labelledby="export-heading">
+          <div class="card-num mono">04</div>
+          <h3 class="card-title" id="export-heading">Export Anywhere</h3>
+          <p class="card-desc">Download your cleaned or augmented audio as MP3 at any stage. Client-side encoding via lamejs — no server ever sees your file.</p>
+          <div class="mono small" style="margin-top:1rem;color:var(--accent)">output → .mp3</div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREENSHOT -->
+  <section class="section section-dark" id="screenshot" aria-labelledby="screenshot-heading">
+    <div class="container">
+      <div class="section-label mono">// interface</div>
+      <h2 class="section-title" id="screenshot-heading">Clean. Minimal. Precise.</h2>
+      <p class="section-sub">Everything you need — nothing you don't. Waveform preview, knob controls, one-click clean audio.</p>
+      <div class="screenshot-wrap fade-in">
+        <img
+          src="../public/audio_augment_interface_screenshot.png"
+          alt="Audio Augment desktop interface showing waveform display, noise removal controls and augmentation rack with knobs for EQ, pitch, reverb and more"
+          class="screenshot-img"
+          loading="lazy"
+          width="1200"
+        />
+        <div class="screenshot-glow" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="section" id="architecture" aria-labelledby="arch-heading">
+    <div class="container">
+      <div class="section-label mono">// architecture</div>
+      <h2 class="section-title" id="arch-heading">Built on the Open Web</h2>
+      <p class="section-sub">No native audio libraries. No cloud APIs. Pure Web Audio API — same engine in browser and desktop.</p>
+
+      <div class="arch-grid">
+        <div class="arch-item fade-in">
+          <div class="arch-icon" aria-hidden="true">⚛️</div>
+          <div class="arch-label mono">Web</div>
+          <div class="arch-desc">TanStack Start · React 19 · Cloudflare Workers</div>
+        </div>
+        <div class="arch-connector" aria-hidden="true"><span class="mono">→</span></div>
+        <div class="arch-item fade-in delay-1">
+          <div class="arch-icon" aria-hidden="true">🔊</div>
+          <div class="arch-label mono">Audio Engine</div>
+          <div class="arch-desc">Web Audio API · 100% client-side · zero latency</div>
+        </div>
+        <div class="arch-connector" aria-hidden="true"><span class="mono">→</span></div>
+        <div class="arch-item fade-in delay-2">
+          <div class="arch-icon" aria-hidden="true">💻</div>
+          <div class="arch-label mono">Desktop</div>
+          <div class="arch-desc">Electron · file:// bundle · NSIS installer</div>
+        </div>
+        <div class="arch-connector" aria-hidden="true"><span class="mono">→</span></div>
+        <div class="arch-item fade-in delay-3">
+          <div class="arch-icon" aria-hidden="true">📦</div>
+          <div class="arch-label mono">Export</div>
+          <div class="arch-desc">lamejs · MP3 encoding in-browser</div>
+        </div>
+      </div>
+
+      <div class="stack-row fade-in">
+        <span class="stack-badge">React 19</span>
+        <span class="stack-badge">TanStack Start</span>
+        <span class="stack-badge">Tailwind CSS v4</span>
+        <span class="stack-badge">Radix UI</span>
+        <span class="stack-badge">Web Audio API</span>
+        <span class="stack-badge">lamejs</span>
+        <span class="stack-badge">Electron</span>
+        <span class="stack-badge">Cloudflare Workers</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section class="section section-accent" id="download" aria-labelledby="download-heading">
+    <div class="container center">
+      <div class="section-label mono">// get started</div>
+      <h2 class="section-title" id="download-heading">Download &amp; Run</h2>
+
+      <div class="download-grid">
+        <div class="download-card glass fade-in">
+          <div class="download-icon" aria-hidden="true">🪟</div>
+          <h3>Windows Installer</h3>
+          <p class="mono small">audio-augment-x.x.x-x64.nsis.7z</p>
+          <ol class="download-steps">
+            <li>Download from <a href="https://github.com/your-username/audio-augment/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li>Extract the <code>.7z</code> archive</li>
+            <li>Run the installer</li>
+            <li>Launch from desktop shortcut</li>
+          </ol>
+          <a href="https://github.com/your-username/audio-augment/releases" class="btn-primary" target="_blank" rel="noopener">Download for Windows</a>
+        </div>
+
+        <div class="download-card glass fade-in delay-1">
+          <div class="download-icon" aria-hidden="true">⌨️</div>
+          <h3>Run from Source</h3>
+          <p class="mono small">Node.js 20+ required</p>
+          <pre class="code-block" role="region" aria-label="Terminal commands"><code><span class="code-comment"># clone &amp; install</span>
+git clone https://github.com/your-username/audio-augment
+cd audio-augment
+npm install
+
+<span class="code-comment"># web (browser)</span>
+npm run dev
+
+<span class="code-comment"># desktop (Electron)</span>
+npm run desktop</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTRIBUTE -->
+  <section class="section" id="contribute" aria-labelledby="contribute-heading">
+    <div class="container center">
+      <div class="section-label mono">// open source</div>
+      <h2 class="section-title" id="contribute-heading">Contribute</h2>
+      <p class="section-sub" style="max-width:560px;margin-inline:auto">
+        The audio engine lives in <code>src/lib/audio/</code>. Good first areas:
+        gate &amp; limiter, Mac/Linux build targets, waveform zoom, custom preset management.
+      </p>
+      <div class="contrib-steps fade-in">
+        <div class="contrib-step">
+          <span class="contrib-num mono">01</span>
+          <span>Fork the repo &amp; create a branch</span>
+        </div>
+        <div class="contrib-arrow" aria-hidden="true">→</div>
+        <div class="contrib-step">
+          <span class="contrib-num mono">02</span>
+          <span>Make your changes in <code>src/lib/audio/</code></span>
+        </div>
+        <div class="contrib-arrow" aria-hidden="true">→</div>
+        <div class="contrib-step">
+          <span class="contrib-num mono">03</span>
+          <span>Test in web &amp; desktop</span>
+        </div>
+        <div class="contrib-arrow" aria-hidden="true">→</div>
+        <div class="contrib-step">
+          <span class="contrib-num mono">04</span>
+          <span>Open a pull request</span>
+        </div>
+      </div>
+      <a href="https://github.com/your-username/audio-augment" class="btn-outline" target="_blank" rel="noopener" style="margin-top:2.5rem">View on GitHub →</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer" role="contentinfo">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="../public/audio_augment_logo.webp" alt="" width="24" height="24" aria-hidden="true" />
+        <span class="mono small">Audio Augment · by Creators AI Lab</span>
+      </div>
+      <p class="mono small muted">MIT License · no accounts · no internet required</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
