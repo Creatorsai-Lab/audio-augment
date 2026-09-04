@@ -14,7 +14,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(electronRoot, "..", "desktop-dist"),
     emptyOutDir: true,
-    cssMinify: false,
     rollupOptions: {
       input: path.resolve(electronRoot, "index.html"),
     },

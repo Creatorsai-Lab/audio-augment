@@ -8,7 +8,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 640,
     backgroundColor: "#fff9f3",
-    title: "Clarity Audio Desk",
+    title: "Audio Augment",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   Menu.setApplicationMenu(null);

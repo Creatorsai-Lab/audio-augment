@@ -35,14 +35,14 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "public/audio_augment_logo_original.png"
+      "icon": "release/.icon-ico/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/audio_augment_logo_original.png",
-      "uninstallerIcon": "public/audio_augment_logo_original.png",
+      "installerIcon": "release/.icon-ico/icon.ico",
+      "uninstallerIcon": "release/.icon-ico/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Audio Augment"
