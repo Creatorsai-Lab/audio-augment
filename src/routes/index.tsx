@@ -226,7 +226,7 @@ export function Studio() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
       {/* ── Header ── */}
-      <header className="mb-6">
+      <header className="mb-16">
         <div className="flex items-center justify-center gap-3">
           <img
             src="./audio_augment_logo.webp"
@@ -237,9 +237,26 @@ export function Studio() {
         </div>
       </header>
 
-      {/* ════════════════════════════════════════════════════════════ */}
+      {/* File upload */}
+      <div className="flex flex-wrap items-center gap-4 align-center items-center justify-center mb-5">
+        <label className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+          Upload Audio
+          <input
+            type="file"
+            accept=".mp3,.wav,audio/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void loadFile(f);
+            }}
+          />
+        </label>
+        <span className="text-sm text-muted-foreground">
+          {noiseStatus || "OR drag and drop (MP3 and WAV only)."}
+        </span>
+      </div>
+
       {/*  SECTION 1 — NOISE & BACKGROUND REMOVAL                    */}
-      {/* ════════════════════════════════════════════════════════════ */}
       <section
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -249,31 +266,9 @@ export function Studio() {
         }}
         className="rounded-lg border border-dashed border-border bg-card p-5 shadow-[var(--shadow-panel)]"
       >
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Step 1 — Noise & background removal
-        </p>
-
-        {/* File upload */}
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
-            Choose audio file
-            <input
-              type="file"
-              accept=".mp3,.wav,audio/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void loadFile(f);
-              }}
-            />
-          </label>
-          <span className="text-sm text-muted-foreground">
-            {noiseStatus || "…or drop an .mp3 / .wav here"}
-          </span>
-        </div>
 
         {/* Noise settings */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-panel)]">
           <Knob
             label="Noise reduction"
             value={settings.denoise}
@@ -282,21 +277,21 @@ export function Studio() {
             onChange={(v) => set("denoise", v)}
           />
           <Knob
-            label="De-hiss"
+            label="Hissing reduction"
             value={settings.hiss}
             min={0}
             max={1}
             onChange={(v) => set("hiss", v)}
           />
           <Knob
-            label="Breath / room gate"
+            label="Breath reduction"
             value={settings.breath}
             min={0}
             max={1}
             onChange={(v) => set("breath", v)}
           />
           <Knob
-            label="De-esser"
+            label="Sibilance reduction"
             value={settings.deEss}
             min={0}
             max={1}
@@ -307,62 +302,53 @@ export function Studio() {
         {/* Waveforms */}
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-              Original audio
+            <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
+              Original Audio Preview
             </p>
-            <canvas ref={inRef} className="h-20 w-full rounded bg-secondary/60" />
+            <canvas ref={inRef} className="h-17 w-full rounded bg-secondary/60" />
+            <button
+              disabled={!original}
+              onClick={() => (playing === "original" ? stop() : playBuffer(original, "original"))}
+              className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
+            >
+              {playing === "original" ? "⏹ Stop" : "▶ Play original"}
+            </button>
+            <button
+              disabled={!original || noiseBusy}
+              onClick={removeNoise}
+              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
+            >
+              {noiseBusy ? "Working…" : "Remove Noise"}
+            </button>
+
           </div>
           <div>
-            <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-accent">
-              Cleaned audio
+            <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
+              Cleaned Audio Preview
             </p>
-            <canvas ref={outRef} className="h-20 w-full rounded bg-secondary/60" />
+            <canvas ref={outRef} className="h-17 w-full rounded bg-secondary/60" />
+            <button
+              disabled={!cleaned}
+              onClick={() => (playing === "cleaned" ? stop() : playBuffer(cleaned, "cleaned"))}
+              className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
+            >
+              {playing === "cleaned" ? "⏹ Stop" : "▶ Play cleaned"}
+            </button>
+            <button
+              disabled={!cleaned}
+              onClick={() => download(cleaned, "-cleaned")}
+              className="m-3 rounded-md border border-accent px-4 py-2 text-sm text-accent disabled:opacity-40"
+            >
+              ⬇ Download cleaned audio
+            </button>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            disabled={!original || noiseBusy}
-            onClick={removeNoise}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
-          >
-            {noiseBusy ? "Working…" : "Remove Noise"}
-          </button>
-          <button
-            disabled={!original}
-            onClick={() => (playing === "original" ? stop() : playBuffer(original, "original"))}
-            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-          >
-            {playing === "original" ? "⏹ Stop" : "▶ Play original"}
-          </button>
-          <button
-            disabled={!cleaned}
-            onClick={() => (playing === "cleaned" ? stop() : playBuffer(cleaned, "cleaned"))}
-            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-          >
-            {playing === "cleaned" ? "⏹ Stop" : "▶ Play cleaned"}
-          </button>
-          <button
-            disabled={!cleaned}
-            onClick={() => download(cleaned, "-cleaned")}
-            className="rounded-md border border-accent px-4 py-2 text-sm text-accent disabled:opacity-40"
-          >
-            ⬇ Download cleaned audio
-          </button>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════ */}
       {/*  SECTION 2 — AUDIO AUGMENTATION                             */}
-      {/* ════════════════════════════════════════════════════════════ */}
       <section className="mt-8 rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Step 2 — Audio augmentation
-        </p>
-
         {/* Source picker */}
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4 border-b pb-4 align-center items-center justify-center">
           <span className="text-sm text-muted-foreground">Source:</span>
           <button
             disabled={!original}
@@ -383,48 +369,87 @@ export function Studio() {
           )}
         </div>
 
-        {/* Presets */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {Object.keys(PRESETS).map((name) => (
-            <button
-              key={name}
-              onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
-              className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
-            >
-              {name}
-            </button>
-          ))}
+        {/* Augment Audio Preview */}
+
+        <div className="mt-5">
+          <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
+            Augmented Audio Preview
+          </p>
+          <canvas ref={augCanvasRef} className="h-17 w-full rounded bg-secondary/60" />
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
-            onClick={() =>
-              setSettings((s) => ({
-                ...s,
-                eqLow: defaultSettings.eqLow,
-                eqMid: defaultSettings.eqMid,
-                eqHigh: defaultSettings.eqHigh,
-                resonance: defaultSettings.resonance,
-                pitch: defaultSettings.pitch,
-                harmonizer: defaultSettings.harmonizer,
-                harmonizerInterval: defaultSettings.harmonizerInterval,
-                chorus: defaultSettings.chorus,
-                compressor: defaultSettings.compressor,
-                saturation: defaultSettings.saturation,
-                output: defaultSettings.output,
-                reverb: defaultSettings.reverb,
-                reverbSize: defaultSettings.reverbSize,
-                delay: defaultSettings.delay,
-                delayTime: defaultSettings.delayTime,
-                delayFeedback: defaultSettings.delayFeedback,
-                deEss: defaultSettings.deEss,
-              }))
-            }
-            className="rounded-md border border-border px-3 py-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            disabled={!(selectedSource === "original" ? original : cleaned) || augBusy}
+            onClick={applyAugmentation}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
           >
-            Reset
+            {augBusy ? "Working…" : "Apply Augmentation"}
+          </button>
+          <button
+            disabled={!augmented}
+            onClick={() =>
+              playing === "augmented" ? stop() : playBuffer(augmented, "augmented")
+            }
+            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
+          >
+            {playing === "augmented" ? "⏹ Stop" : "▶ Play augmented"}
+          </button>
+          <button
+            disabled={!augmented}
+            onClick={() => download(augmented, "-augmented")}
+            className="rounded-md border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
+          >
+            ⬇ Download augmented audio
           </button>
         </div>
 
-        {/* Augmentation panels */}
+
+        {/* Presets and Augmentation panels */}
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {/* Preset Buttons */}
+          <div className="mt-4 flex w-full flex-col gap-4 px-3 p-auto">
+            <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">Presets</p>
+            {Object.keys(PRESETS).map((name) => (
+              <button
+                key={name}
+                onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
+                className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-center text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
+              >
+                {name}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setSettings((s) => ({
+                  ...s,
+                  eqLow: defaultSettings.eqLow,
+                  eqMid: defaultSettings.eqMid,
+                  eqHigh: defaultSettings.eqHigh,
+                  resonance: defaultSettings.resonance,
+                  pitch: defaultSettings.pitch,
+                  harmonizer: defaultSettings.harmonizer,
+                  harmonizerInterval: defaultSettings.harmonizerInterval,
+                  chorus: defaultSettings.chorus,
+                  compressor: defaultSettings.compressor,
+                  saturation: defaultSettings.saturation,
+                  output: defaultSettings.output,
+                  reverb: defaultSettings.reverb,
+                  reverbSize: defaultSettings.reverbSize,
+                  delay: defaultSettings.delay,
+                  delayTime: defaultSettings.delayTime,
+                  delayFeedback: defaultSettings.delayFeedback,
+                  deEss: defaultSettings.deEss,
+                }))
+              }
+              className="w-full rounded-md border border-border px-3 py-1.5 text-center text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            >
+              Reset
+            </button>
+          </div>
+
+
           <Panel title="Equalizer">
             <Knob
               label="Low shelf"
@@ -567,40 +592,6 @@ export function Studio() {
           </Panel>
         </div>
 
-        {/* Augmented waveform */}
-        <div className="mt-5">
-          <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-[#4a9d6e]">
-            Augmented audio
-          </p>
-          <canvas ref={augCanvasRef} className="h-20 w-full rounded bg-secondary/60" />
-        </div>
-
-        {/* Actions */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            disabled={!(selectedSource === "original" ? original : cleaned) || augBusy}
-            onClick={applyAugmentation}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
-          >
-            {augBusy ? "Working…" : "Apply Augmentation"}
-          </button>
-          <button
-            disabled={!augmented}
-            onClick={() =>
-              playing === "augmented" ? stop() : playBuffer(augmented, "augmented")
-            }
-            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-          >
-            {playing === "augmented" ? "⏹ Stop" : "▶ Play augmented"}
-          </button>
-          <button
-            disabled={!augmented}
-            onClick={() => download(augmented, "-augmented")}
-            className="rounded-md border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
-          >
-            ⬇ Download augmented audio
-          </button>
-        </div>
       </section>
 
       {/* ── Footer ── */}
