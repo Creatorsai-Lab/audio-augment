@@ -1,7 +1,7 @@
-# Audio Augment
+# Audio Augment Studio
 _by Creators AI Lab_
 
-A very simple and fast audio editing app that works with great precision. It has been designed and developed for content creators to edit their audio at their fingertips without any hassle.
+A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators to edit their audio at their fingertips without any hassle.
 
 `no accounts`, `no internet required`, `just kickstart`
 
@@ -67,4 +67,9 @@ npm run dev
 
 # start desktop app
 npm run desktop
+```
+
+```bash
+# build locally
+npm run desktop:package
 ```
