@@ -1,17 +1,52 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "audio-augment",
+  "version": "1.0.0",
+  "description": "Offline Voice Cleanup & Audio Studio — strip background noise, hiss and breaths, then shape voice with EQ, pitch, compressor, reverb, delay and more.",
+  "author": "Creators AI Lab",
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "desktop:build": "vite build --config electron/vite.config.ts",
     "desktop": "npm run desktop:build && electron electron/main.cjs",
+    "desktop:package": "npm run desktop:build && electron-builder --win",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
+  },
+  "build": {
+    "appId": "com.creatorsailab.audioaugment",
+    "productName": "Audio Augment",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/main.cjs",
+      "desktop-dist/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/audio_augment_logo_original.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/audio_augment_logo_original.png",
+      "uninstallerIcon": "public/audio_augment_logo_original.png",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Audio Augment"
+    }
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -80,6 +115,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",

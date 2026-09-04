@@ -605,6 +605,10 @@
     justify-content: center;
   }
 
+  .justify-end {
+    justify-content: flex-end;
+  }
+
   .gap-2 {
     gap: calc(var(--spacing) * 2);
   }
@@ -634,6 +638,11 @@
     border-width: 1px;
   }
 
+  .border-2 {
+    border-style: var(--tw-border-style);
+    border-width: 2px;
+  }
+
   .border-b {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 1px;
@@ -654,6 +663,10 @@
 
   .border-input {
     border-color: var(--input);
+  }
+
+  .border-primary {
+    border-color: var(--primary);
   }
 
   .bg-accent {
@@ -813,6 +826,10 @@
     color: var(--muted-foreground);
   }
 
+  .text-primary {
+    color: var(--primary);
+  }
+
   .text-primary-foreground {
     color: var(--primary-foreground);
   }
@@ -882,8 +899,8 @@
       color: var(--foreground);
     }
 
-    .hover\:opacity-90:hover {
-      opacity: .9;
+    .hover\:opacity-80:hover {
+      opacity: .8;
     }
   }
 

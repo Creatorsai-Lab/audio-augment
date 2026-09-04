@@ -93,7 +93,7 @@ export function Studio() {
   /* ── Waveform draws ── */
   useEffect(() => drawWave(inRef.current, original, "oklch(0.55 0.02 250)"), [original]);
   useEffect(() => drawWave(outRef.current, cleaned, "#c75d3a"), [cleaned]);
-  useEffect(() => drawWave(augCanvasRef.current, augmented, "#4a9d6e"), [augmented]);
+  useEffect(() => drawWave(augCanvasRef.current, augmented, "#c75d3a"), [augmented]);
 
   /* ── Simple playback (no live effects — buffers are pre-rendered) ── */
   const stop = useCallback(() => {
@@ -239,8 +239,8 @@ export function Studio() {
 
       {/* File upload */}
       <div className="flex flex-wrap items-center gap-4 align-center items-center justify-center mb-5">
-        <label className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
-          Upload Audio
+        <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary">
+          + Upload Audio
           <input
             type="file"
             accept=".mp3,.wav,audio/*"
@@ -337,7 +337,7 @@ export function Studio() {
             <button
               disabled={!cleaned}
               onClick={() => download(cleaned, "-cleaned")}
-              className="m-3 rounded-md border border-accent px-4 py-2 text-sm text-accent disabled:opacity-40"
+              className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-40"
             >
               ⬇ Download cleaned audio
             </button>
@@ -353,14 +353,14 @@ export function Studio() {
           <button
             disabled={!original}
             onClick={() => setSelectedSource("original")}
-            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "original" ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}
+            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "original" ? "cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary" : "border-border"}`}
           >
             Original audio
           </button>
           <button
             disabled={!cleaned}
             onClick={() => setSelectedSource("cleaned")}
-            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "cleaned" ? "border-accent bg-accent text-accent-foreground" : "border-border"}`}
+            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "cleaned" ? "cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary" : "border-border"}`}
           >
             Cleaned audio
           </button>
@@ -399,7 +399,7 @@ export function Studio() {
           <button
             disabled={!augmented}
             onClick={() => download(augmented, "-augmented")}
-            className="rounded-md border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
+            className="rounded-md border border-accent bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-40 flex justify-end"
           >
             ⬇ Download augmented audio
           </button>
