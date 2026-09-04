@@ -55,6 +55,13 @@ Grab the latest Windows installer from [Releases](../../releases).
 
 ---
 
+## User Guide
+
+Full usage documentation — every control explained, workflows, and tips:
+**[→ Read the User Guide](docs/user_guide.md)**
+
+---
+
 ## Run locally (desktop app)
 
 **Requirements:** Node.js 20+, npm
