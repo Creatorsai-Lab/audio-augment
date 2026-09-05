@@ -1,7 +1,7 @@
 {
   "name": "audio-augment",
   "version": "1.0.0",
-  "description": "Offline Voice Cleanup & Audio Studio — strip background noise, hiss and breaths, then shape voice with EQ, pitch, compressor, reverb, delay and more.",
+  "description": "A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips.",
   "author": "Creators AI Lab",
   "private": true,
   "sideEffects": false,
@@ -21,7 +21,7 @@
   },
   "build": {
     "appId": "com.creatorsailab.audioaugment",
-    "productName": "Audio Augment",
+    "productName": "Audio Augment Studio",
     "directories": {
       "output": "release"
     },
@@ -33,20 +33,21 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "release/.icon-ico/icon.ico"
+      "icon": "public/android-chrome-512x512.png"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "release/.icon-ico/icon.ico",
-      "uninstallerIcon": "release/.icon-ico/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Audio Augment"
+      "shortcutName": "Audio Augment",
+      "artifactName": "audio-augment-${version}.${ext}"
     }
   },
   "overrides": {

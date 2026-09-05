@@ -14,17 +14,17 @@ import { encodeMp3 } from "../lib/audio/mp3";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Audio Augment — Offline Voice Cleanup & Audio Studio" },
+      { title: "Audio Augment | Audio Cleaner and Editor" },
       {
         name: "description",
         content:
-          "Drop an MP3 or WAV to strip background noise, hiss and breaths, then shape the voice with EQ, pitch, compressor, harmonizer, saturation, reverb, delay and chorus.",
+          "A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips.",
       },
-      { property: "og:title", content: "Audio Augment — Offline Voice Cleanup & Audio Studio" },
+      { property: "og:title", content: "Audio Augment | Audio Cleaner and Editor" },
       {
         property: "og:description",
         content:
-          "Signal-processing noise removal plus a full voice effects rack, running entirely in your browser.",
+          "A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips.",
       },
     ],
   }),
@@ -227,20 +227,59 @@ export function Studio() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
       {/* ── Header ── */}
-      <header className="mb-16">
-        <div className="flex items-center justify-center gap-3">
+      <header className="mb-16 flex flex-col items-center justify-between gap-6 sm:flex-row sm:gap-0">
+        {/* Left Side: Logo & Name */}
+        <div className="flex cursor-pointer select-none items-center gap-3">
           <img
             src="./audio_augment_logo.webp"
             alt="Audio Augment logo"
             className="h-12 w-12 object-contain"
           />
-          <h1 className="text-2xl font-bold tracking-tight text-accent">Audio Augment</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-accent">
+            Audio Augment
+          </h1>
+        </div>
+
+        {/* Right Side: Action Buttons */}
+        <div className="flex items-center gap-4">
+          {/* Creators AI Lab Button - Glowing Animated Background */}
+          <div className="group relative">
+            {/* Animated Glow Layer */}
+            <div className="absolute -inset-0.5 animate-pulse rounded-md transition duration-300 group-hover:opacity-100"></div>
+            <a
+              href="https://creatorsailab.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative flex h-9 items-center justify-center rounded-md bg-[linear-gradient(90deg,#eab308,#3b82f6,#8b5cf6,#22c55e)] bg-[length:300%_300%] px-4 py-2 text-sm font-bold tracking-wide text-white transition-opacity hover:opacity-90"
+              style={{
+                animation: "gradientMove 6s ease infinite",
+              }}
+            >
+              <style>{`
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+  `}</style>
+              Creators AI Lab
+            </a>
+          </div>
+          {/* GitHub Star Button Widget */}
+          <div className="flex h-8 items-center font-normal justify-center pt-1">
+            <iframe
+              src="https://ghbtns.com/github-btn.html?user=Creatorsai-Lab&repo=audio-augment&type=star&count=true&size=large"
+              width="150"
+              height="30"
+              title="GitHub"
+            ></iframe>
+          </div>
         </div>
       </header>
 
       {/* File upload */}
-      <div className="flex flex-wrap items-center gap-4 p-3 align-center items-center justify-center mb-5 border-1 border-border rounded-md">
-        <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary">
+      <div className="mb-5 flex items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-4 select-none">
+        <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary transition-all duration-150 active:translate-y-1">
           + Upload Audio
           <input
             type="file"
@@ -265,7 +304,7 @@ export function Studio() {
           const f = e.dataTransfer.files[0];
           if (f) void loadFile(f);
         }}
-        className="rounded-lg border border-dashed border-border bg-card p-5 shadow-[var(--shadow-panel)]"
+        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]"
       >
 
         {/* Noise settings */}
@@ -317,7 +356,7 @@ export function Studio() {
             <button
               disabled={!original || noiseBusy}
               onClick={removeNoise}
-              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
+              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
             >
               {noiseBusy ? "Working…" : "Remove Noise"}
             </button>
@@ -338,7 +377,7 @@ export function Studio() {
             <button
               disabled={!cleaned}
               onClick={() => download(cleaned, "-cleaned")}
-              className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-40"
+              className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-40 transition-all duration-150 active:translate-y-1"
             >
               ⬇ Download cleaned audio
             </button>
@@ -384,7 +423,7 @@ export function Studio() {
           <button
             disabled={!(selectedSource === "original" ? original : cleaned) || augBusy}
             onClick={applyAugmentation}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
           >
             {augBusy ? "Working…" : "Apply Augmentation"}
           </button>
@@ -400,7 +439,7 @@ export function Studio() {
           <button
             disabled={!augmented}
             onClick={() => download(augmented, "-augmented")}
-            className="rounded-md border border-accent bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-40 flex justify-end"
+            className="rounded-md border cursor-pointer border-accent bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
           >
             ⬇ Download augmented audio
           </button>
@@ -408,22 +447,21 @@ export function Studio() {
 
 
         {/* Presets and Augmentation panels */}
-        <div className="mt-5 grid gap-4 md:grid-cols-[160px_1fr] xl:grid-cols-[160px_1fr_1fr]">
+        <div className="mt-5 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
           {/* Preset Buttons */}
-          <div className="flex w-full flex-col gap-3 px-2">
+          <div className="flex w-full flex-col gap-3 px-2 md:w-[calc(20%-0.67rem)]">
             <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">Presets</p>
             {Object.keys(PRESETS).map((name) => (
               <button
                 key={name}
                 onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
-                className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-center text-xs uppercase tracking-widest text-secondary-foreground transition-colors hover:border-accent hover:text-accent"
+                className="w-full cursor-pointer rounded-md border border-border bg-secondary px-3 py-2 text-center text-xs uppercase tracking-widest text-secondary-foreground transition-all duration-150 active:translate-y-1"
               >
                 {name}
               </button>
             ))}
             <button
               onClick={() => {
-                // Reset all augmentation settings, keeping noise settings intact
                 const augKeys = [
                   ...EQ_BANDS.map((b) => b.key),
                   "pitch", "harmonizer", "harmonizerInterval",
@@ -439,17 +477,16 @@ export function Studio() {
                   return next;
                 });
               }}
-              className="w-full rounded-md border border-border px-3 py-1.5 text-center text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+              className="w-full cursor-pointer rounded-md border border-border px-3 py-1.5 text-center text-xs uppercase tracking-widest text-muted-foreground transition-all duration-150 active:translate-y-1"
             >
               Reset
             </button>
           </div>
 
-
-          <Panel title="10-Band Equalizer" className="xl:col-span-1">
-            <div className="grid grid-cols-5 gap-x-3 gap-y-3 sm:grid-cols-10">
+          <Panel title="10-Band Equalizer" className="flex w-full flex-col md:w-[calc(45%-0.67rem)]">
+            <div className="grid h-full flex-1 grid-cols-5 gap-x-3 gap-y-3 sm:grid-cols-10">
               {EQ_BANDS.map((band) => (
-                <div key={band.key} className="flex flex-col items-center gap-1">
+                <div key={band.key} className="flex h-full flex-col items-center justify-between gap-1">
                   <span className="font-mono text-[10px] text-accent">
                     {settings[band.key].toFixed(0)} dB
                   </span>
@@ -460,25 +497,24 @@ export function Studio() {
                     step={1}
                     value={settings[band.key]}
                     onChange={(e) => set(band.key, parseFloat(e.target.value))}
-                    className="fader h-36 w-5"
+                    className="fader w-5 flex-1 min-h-[120px]"
                     style={{
                       writingMode: "vertical-lr" as const,
                       direction: "rtl" as const,
                     }}
-                    title={`${band.desc} (${band.label} Hz)`}
+                    title={`${band.label}`}
                   />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {band.label}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground/70">
-                    {band.desc}
-                  </span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {band.label}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </Panel>
 
-          <Panel title="Voice">
+          <Panel title="Voice" className="w-full md:w-[calc(33%-0.67rem)] md:flex-grow">
             <Knob
               label="Pitch"
               value={settings.pitch}
@@ -513,8 +549,7 @@ export function Studio() {
             />
           </Panel>
 
-
-          <Panel title="Reverb">
+          <Panel title="Reverb" className="w-full md:w-[calc(33.33%-0.67rem)]">
             <Knob
               label="Mix"
               value={settings.reverb}
@@ -533,7 +568,7 @@ export function Studio() {
             />
           </Panel>
 
-          <Panel title="Dynamics & colour">
+          <Panel title="Dynamics & colour" className="w-full md:w-[calc(33.33%-0.67rem)]">
             <Knob
               label="Compressor"
               value={settings.compressor}
@@ -559,7 +594,7 @@ export function Studio() {
             />
           </Panel>
 
-          <Panel title="Echo / delay">
+          <Panel title="Echo / delay" className="w-full md:w-[calc(33.33%-0.67rem)]">
             <Knob
               label="Mix"
               value={settings.delay}
@@ -583,33 +618,149 @@ export function Studio() {
             />
           </Panel>
         </div>
-
       </section>
+      <section className="mx-auto w-full space-y-12 py-8 text-foreground">
+        {/* Hero Description Card */}
+        <h3 className="mb-4 text-center text-2xl font-bold text-primary">
+          What is Audio Augment Studio ?
+        </h3>
+        <p className="text-center leading-relaxed text-muted-foreground">
+          A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators and artiststo edit their audio at their fingertips without any hassle.
+        </p>
 
-      <section>
-        <h3 className="text-md center">What is <i>Audio Auugment Studio</i>?</h3>
-        <p>This is a powerful, yet simple-to-use, web-based tool designed to transform your raw voice recordings into polished, studio-quality vocal tracks. Whether you're a musician looking to add harmonies, a podcaster enhancing clarity, a content creator needing vocal depth, or just someone wanting to sound better online, Audio Augment Studio gives you professional audio processing at your fingertips.</p>
-        <p>
-          <h2>How does it work?</h2>
-          <p>The app uses advanced audio processing algorithms to enhance your voice. Simply upload an audio file, select the desired effects, and the app will process the audio in real-time. You can adjust the settings to fine-tune the sound, and download the enhanced audio file for use in your projects.</p>
-        </p>
-        <p>
-          <h2>Who is it for?</h2>
-          <p>Musicians, podcasters, content creators, and anyone who wants to improve their vocal recordings.</p>
-        </p>
-        <p>
-          <h2>Why use it?</h2>
-          <p>It's free, easy to use, and gives you professional results. You can experiment with different effects and settings to find the perfect sound for your voice.</p>
-        </p>
-        <p>
-          <h2>How to use it?</h2>
-          <p>Simply upload an audio file, select the desired effects, and the app will process the audio in real-time. You can adjust the settings to fine-tune the sound, and download the enhanced audio file for use in your projects.</p>
-        </p>
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
+            <h3 className="mb-2 text-lg font-semibold text-secondary">
+              How does it work?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              The app uses advanced audio processing algorithms to enhance your
+              voice. Simply upload an audio file, select the desired effects, and
+              the app will process it in real-time.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
+            <h3 className="mb-2 text-lg font-semibold text-secondary">
+              Who is it for?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Musicians, podcasters, content creators, and absolutely anyone who
+              wants to dramatically improve the quality of their vocal recordings.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
+            <h3 className="mb-2 text-lg font-semibold text-secondary">
+              Why use it?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              It's fast, incredibly easy to use, and delivers professional results
+              instantly. You can safely experiment with settings to find your
+              perfect signature sound.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
+            <h3 className="mb-2 text-lg font-semibold text-secondary">
+              How to use it?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Upload a file, select your effects, adjust the dials to fine-tune
+              your sound, and simply hit download to grab your studio-ready track
+              for your projects.
+            </p>
+          </div>
+        </div>
+
+        {/* Dropdown FAQ Section */}
+        <h3 className="mb-8 text-center text-2xl font-bold text-primary">
+          Frequently Asked Questions
+        </h3>
+        <div className="space-y-4">
+
+          {/* FAQ 1 */}
+          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
+              <h3 className="m-0 text-base font-medium">
+                What audio formats are supported?
+              </h3>
+              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </span>
+            </summary>
+            <div className="px-4 pb-4 text-sm text-muted-foreground">
+              <p>
+                We currently support MP3 and WAV files for upload.
+                You can export your finished tracks in high quality MP3.
+              </p>
+            </div>
+          </details>
+
+          {/* FAQ 2 */}
+          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
+              <h3 className="m-0 text-base font-medium">
+                Is my audio stored on your servers?
+              </h3>
+              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </span>
+            </summary>
+            <div className="px-4 pb-4 text-sm text-muted-foreground">
+              <p>
+                Your privacy is our priority. Audio processing happens securely, and
+                we immediately delete your raw and processed files from our servers
+                the moment your session ends.
+              </p>
+            </div>
+          </details>
+
+          {/* FAQ 3 */}
+          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
+              <h3 className="m-0 text-base font-medium">
+                Do I need a professional microphone?
+              </h3>
+              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </span>
+            </summary>
+            <div className="px-4 pb-4 text-sm text-muted-foreground">
+              <p>
+                Not at all! While a good mic always helps, our AI and enhancement
+                algorithms are explicitly trained to clean up noise and enrich audio
+                recorded on cheap headsets or phone mics.
+              </p>
+            </div>
+          </details>
+
+          {/* FAQ 4 */}
+          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
+              <h3 className="m-0 text-base font-medium">
+                Can I use Audio Augment Studio on mobile?
+              </h3>
+              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </span>
+            </summary>
+            <div className="px-4 pb-4 text-sm text-muted-foreground">
+              <p>
+                Yes. Our studio interface is fully responsive. You can record,
+                upload, process, and download audio directly from your smartphone's
+                web browser using our website or if you want you can download the web app for free.
+              </p>
+            </div>
+          </details>
+
+        </div>
       </section>
 
       {/* ── Footer ── */}
-      <p className="mt-6 text-xs text-muted-foreground">
-        © All right reserved 2026 | Creators AI Lab
+      <p className="mt-6 text-md text-muted-foreground text-center font">
+        © All right reserved • Audio Augment Studio | Creators AI Lab • 2026
       </p>
     </main>
   );

@@ -37,16 +37,16 @@ export type Settings = {
 
 /** Standard 10-band graphic EQ frequencies and their descriptions. */
 export const EQ_BANDS = [
-  { key: "eq31"  as const, freq: 31,    label: "31",  desc: "Sub-bass" },
-  { key: "eq63"  as const, freq: 63,    label: "63",  desc: "Bass" },
-  { key: "eq125" as const, freq: 125,   label: "125", desc: "Upper bass" },
-  { key: "eq250" as const, freq: 250,   label: "250", desc: "Low mids" },
-  { key: "eq500" as const, freq: 500,   label: "500", desc: "Mids" },
-  { key: "eq1k"  as const, freq: 1000,  label: "1K",  desc: "Central mid band" },
-  { key: "eq2k"  as const, freq: 2000,  label: "2K",  desc: "Upper mids" },
-  { key: "eq4k"  as const, freq: 4000,  label: "4K",  desc: "Presence" },
-  { key: "eq8k"  as const, freq: 8000,  label: "8K",  desc: "Brilliance" },
-  { key: "eq16k" as const, freq: 16000, label: "16K", desc: "Air" },
+  { key: "eq31" as const, freq: 31, label: "31 : Sub-bass" },
+  { key: "eq63" as const, freq: 63, label: "63 : Bass" },
+  { key: "eq125" as const, freq: 125, label: "125 : Upper bass" },
+  { key: "eq250" as const, freq: 250, label: "250 : Low mids" },
+  { key: "eq500" as const, freq: 500, label: "500 : Mids" },
+  { key: "eq1k" as const, freq: 1000, label: "1K : C mid band" },
+  { key: "eq2k" as const, freq: 2000, label: "2K : Upper mids" },
+  { key: "eq4k" as const, freq: 4000, label: "4K : Presence" },
+  { key: "eq8k" as const, freq: 8000, label: "8K : Brilliance" },
+  { key: "eq16k" as const, freq: 16000, label: "16K : Air" },
 ] as const;
 
 export const defaultSettings: Settings = {
@@ -149,7 +149,7 @@ export async function renderAugmented(
   const delayTail =
     s.delay > 0
       ? s.delayTime *
-        (s.delayFeedback > 0 ? Math.ceil(Math.log(0.001) / Math.log(s.delayFeedback)) : 1)
+      (s.delayFeedback > 0 ? Math.ceil(Math.log(0.001) / Math.log(s.delayFeedback)) : 1)
       : 0;
   const tailSeconds = Math.min(60, Math.max(s.reverb > 0 ? s.reverbSize : 0, delayTail));
   const renderLength = source.length + Math.ceil(tailSeconds * sr);

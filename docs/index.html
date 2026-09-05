@@ -1,33 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- SEO -->
-  <title>Audio Augment | Audio Noise Removal </title>
-  <meta name="description" content="Remove background noise, clean audio, and shape your voice with professional effects — entirely offline. Free desktop app and web tool for content creators." />
-  <meta name="keywords" content="audio noise removal, remove background noise, clean audio, audio editor, voice cleanup, noise reduction, offline audio tool, audio augmentation" />
+  <title>Audio Augment | Audio Cleaner and Editor </title>
+  <meta name="description"
+    content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips." />
+  <meta name="keywords"
+    content="audio noise removal, remove background noise, clean audio, audio editor, voice cleanup, noise reduction, offline audio tool, audio augmentation" />
   <meta name="author" content="Creators AI Lab" />
   <meta name="robots" content="index, follow" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Audio Augment — Offline Audio Noise Removal & Voice Studio" />
-  <meta property="og:description" content="Strip background noise, hiss and breaths from any MP3 or WAV, then shape your voice with EQ, pitch, reverb, delay and more. 100% offline." />
+  <meta property="og:title" content="Audio Augment | Audio Cleaner and Editor" />
+  <meta property="og:description"
+    content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="../public/audio_augment_logo.webp" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Audio Augment — Offline Audio Noise Removal" />
-  <meta name="twitter:description" content="Clean audio noise removal and voice effects studio. No internet, no account needed." />
+  <meta name="twitter:title" content="Audio Augment | Audio Cleaner and Editor" />
+  <meta name="twitter:description"
+    content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips." />
 
   <link rel="icon" href="../public/favicon.ico" type="image/x-icon" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
 
   <!-- Binary rain canvas (background) -->
@@ -45,7 +53,8 @@
         <li><a href="#screenshot">Interface</a></li>
         <li><a href="#architecture">Stack</a></li>
         <li><a href="#download">Download</a></li>
-        <li><a href="https://github.com/your-username/audio-augment" class="btn-ghost" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/your-username/audio-augment" class="btn-ghost" target="_blank"
+            rel="noopener">GitHub</a></li>
       </ul>
     </div>
   </nav>
@@ -59,7 +68,7 @@
       </div>
 
       <h1 class="hero-title fade-in delay-1">
-        Remove Background<br/>
+        Remove Background<br />
         <span class="gradient-text">Noise from Audio</span>
       </h1>
 
@@ -78,7 +87,8 @@
 
       <div class="hero-cta fade-in delay-4">
         <a href="#download" class="btn-primary">Download for Windows</a>
-        <a href="https://github.com/your-username/audio-augment" class="btn-outline" target="_blank" rel="noopener">View Source</a>
+        <a href="https://github.com/your-username/audio-augment" class="btn-outline" target="_blank" rel="noopener">View
+          Source</a>
       </div>
 
 
@@ -97,7 +107,8 @@
         <article class="card card-glow fade-in" aria-labelledby="stage1-heading">
           <div class="card-num mono">01</div>
           <h3 class="card-title" id="stage1-heading">Noise &amp; Background Removal</h3>
-          <p class="card-desc">Drop your audio and <strong>remove background noise</strong> in seconds. Works on recordings, podcasts, voice-overs and calls.</p>
+          <p class="card-desc">Drop your audio and <strong>remove background noise</strong> in seconds. Works on
+            recordings, podcasts, voice-overs and calls.</p>
           <ul class="card-list" role="list">
             <li><span class="dot"></span>Background noise reduction</li>
             <li><span class="dot"></span>Hiss &amp; hum removal</li>
@@ -109,7 +120,8 @@
         <article class="card card-glow fade-in delay-1" aria-labelledby="stage2-heading">
           <div class="card-num mono">02</div>
           <h3 class="card-title" id="stage2-heading">Voice Augmentation Rack</h3>
-          <p class="card-desc">Shape your <strong>clean audio</strong> with a full studio effects rack. Apply presets or dial every knob manually.</p>
+          <p class="card-desc">Shape your <strong>clean audio</strong> with a full studio effects rack. Apply presets or
+            dial every knob manually.</p>
           <ul class="card-list" role="list">
             <li><span class="dot"></span>3-Band EQ (Low / Mid / High)</li>
             <li><span class="dot"></span>Pitch shift &amp; Harmonizer</li>
@@ -133,7 +145,8 @@
         <article class="card card-glow fade-in delay-3" aria-labelledby="export-heading">
           <div class="card-num mono">04</div>
           <h3 class="card-title" id="export-heading">Export Anywhere</h3>
-          <p class="card-desc">Download your cleaned or augmented audio as MP3 at any stage. Client-side encoding via lamejs — no server ever sees your file.</p>
+          <p class="card-desc">Download your cleaned or augmented audio as MP3 at any stage. Client-side encoding via
+            lamejs — no server ever sees your file.</p>
           <div class="mono small" style="margin-top:1rem;color:var(--accent)">output → .mp3</div>
         </article>
 
@@ -145,15 +158,12 @@
   <section class="section section-muted" id="screenshot" aria-labelledby="screenshot-heading">
     <div class="container">
       <h2 class="section-title" id="screenshot-heading">Interface: Clean. Minimal. Precise.</h2>
-      <p class="section-sub">Everything you need — nothing you don't. Waveform preview, knob controls, one-click clean audio.</p>
+      <p class="section-sub">Everything you need — nothing you don't. Waveform preview, knob controls, one-click clean
+        audio.</p>
       <div class="screenshot-wrap fade-in">
-        <img
-          src="../public/audio_augment_interface_screenshot.png"
+        <img src="../public/audio_augment_interface_screenshot.png"
           alt="Audio Augment desktop interface showing waveform display, noise removal controls and augmentation rack with knobs for EQ, pitch, reverb and more"
-          class="screenshot-img"
-          loading="lazy"
-          width="1200"
-        />
+          class="screenshot-img" loading="lazy" width="1200" />
       </div>
     </div>
   </section>
@@ -162,7 +172,8 @@
   <section class="section" id="architecture" aria-labelledby="arch-heading">
     <div class="container">
       <h2 class="section-title" id="arch-heading">Architecure: Built on the Open Web</h2>
-      <p class="section-sub">No native audio libraries. No cloud APIs. Pure Web Audio API — same engine in browser and desktop.</p>
+      <p class="section-sub">No native audio libraries. No cloud APIs. Pure Web Audio API — same engine in browser and
+        desktop.</p>
 
       <div class="arch-grid">
         <div class="arch-item fade-in">
@@ -206,7 +217,7 @@
   <!-- DOWNLOAD -->
   <section class="section section-warm" id="download" aria-labelledby="download-heading">
     <div class="container center">
-    
+
       <h2 class="section-title" id="download-heading">Download &amp; Run</h2>
 
       <div class="download-grid">
@@ -215,12 +226,14 @@
           <h3>Windows Installer</h3>
           <p class="mono small">audio-augment-x.x.x-x64.nsis.7z</p>
           <ol class="download-steps">
-            <li>Download from <a href="https://github.com/your-username/audio-augment/releases" target="_blank" rel="noopener">Releases</a></li>
+            <li>Download from <a href="https://github.com/your-username/audio-augment/releases" target="_blank"
+                rel="noopener">Releases</a></li>
             <li>Extract the .7z archive</li>
             <li>Run the installer</li>
             <li>Launch from desktop shortcut</li>
           </ol>
-          <a href="https://github.com/your-username/audio-augment/releases" class="btn-primary" target="_blank" rel="noopener">Download for Windows</a>
+          <a href="https://github.com/your-username/audio-augment/releases" class="btn-primary" target="_blank"
+            rel="noopener">Download for Windows</a>
         </div>
 
         <div class="download-card glass fade-in delay-1">
@@ -254,8 +267,9 @@
     <div class="container center">
       <h2 class="section-title" id="contribute-heading">Contribute</h2>
       <p class="section-sub" style="max-width:560px;margin-inline:auto">
-        <i>Yes! It is opensource and we welcome for contributions.</i>The audio engine lives in <div>src/lib/audio/</div>. Good first areas:
-        gate &amp; limiter, Mac/Linux build targets, waveform zoom, custom preset management.
+        <i>Yes! It is opensource and we welcome for contributions.</i>The audio engine lives in
+      <div>src/lib/audio/</div>. Good first areas:
+      gate &amp; limiter, Mac/Linux build targets, waveform zoom, custom preset management.
       </p>
       <div class="contrib-steps fade-in">
         <div class="contrib-step">
@@ -284,9 +298,10 @@
   <!-- FOOTER -->
   <footer class="footer" role="contentinfo">
     <div class="container footer-inner">
-        © All right reserved • Audio Augment Studio | Creators AI Lab • 2026
+      © All right reserved • Audio Augment Studio | Creators AI Lab • 2026
   </footer>
 
   <script src="script.js"></script>
 </body>
+
 </html>
