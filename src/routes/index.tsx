@@ -247,7 +247,7 @@ export function Studio() {
             {/* Animated Glow Layer */}
             <div className="absolute -inset-0.5 animate-pulse rounded-md transition duration-300 group-hover:opacity-100"></div>
             <a
-              href="https://creatorsailab.com"
+              href="https://creatorsai-lab.github.io/"
               target="_blank"
               rel="noopener noreferrer"
               className="relative flex h-9 items-center justify-center rounded-md bg-[linear-gradient(90deg,#eab308,#3b82f6,#8b5cf6,#22c55e)] bg-[length:300%_300%] px-4 py-2 text-sm font-bold tracking-wide text-white transition-opacity hover:opacity-90"
@@ -270,7 +270,7 @@ export function Studio() {
             <iframe
               src="https://ghbtns.com/github-btn.html?user=Creatorsai-Lab&repo=audio-augment&type=star&count=true&size=large"
               width="150"
-              height="30"
+              height="25"
               title="GitHub"
             ></iframe>
           </div>
