@@ -14,6 +14,7 @@
     "desktop:build": "vite build --config electron/vite.config.ts",
     "desktop": "npm run desktop:build && electron electron/main.cjs",
     "desktop:package": "npm run desktop:build && electron-builder --win",
+    "web:build": "vite build --config web/vite.config.ts",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

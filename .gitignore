@@ -12,6 +12,7 @@ dist
 dist-ssr
 desktop-dist
 release/
+web-dist/
 .output
 .vinxi
 .tanstack/**

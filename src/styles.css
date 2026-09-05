@@ -144,3 +144,22 @@
     cursor: pointer;
   }
 }
+
+/* Vertical fader for 10-band graphic EQ */
+input[type="range"].fader {
+  &[style*="vertical"] {
+    width: 4px;
+    height: 6rem;
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+}
+
+input[type="range"].fader::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+input[type="range"].fader::-moz-range-track {
+  background: transparent;
+}
+

@@ -4,6 +4,7 @@ import { Panel } from "../components/Panel";
 import { Knob } from "../components/Knob";
 import {
   defaultSettings,
+  EQ_BANDS,
   renderAugmented,
   renderCleaned,
   type Settings,
@@ -32,10 +33,10 @@ export const Route = createFileRoute("/")({
 
 /* ── Presets (augmentation-only, no noise keys) ── */
 const PRESETS: Record<string, Partial<Settings>> = {
-  Podcast: { compressor: 0.5, eqLow: 2, eqHigh: 3, deEss: 0.4 },
-  Radio: { compressor: 0.75, saturation: 0.4, eqLow: 4, eqMid: -2, eqHigh: 4 },
-  Cinematic: { reverb: 0.28, reverbSize: 3.2, eqLow: 3, pitch: -2, saturation: 0.2 },
-  Robot: { pitch: -5, harmonizer: 0.5, harmonizerInterval: 12, resonance: 0.6, chorus: 0.5 },
+  Podcast: { compressor: 0.5, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2, deEss: 0.4 },
+  Educational: { compressor: 0.4, eq125: -2, eq250: 1, eq500: 1, eq1k: 3, eq2k: 4, eq4k: 3, eq8k: 1 },
+  Cinematic: { reverb: 0.28, reverbSize: 3.2, eq63: 3, eq125: 2, eq250: 1, pitch: -2, saturation: 0.2 },
+  Gaming: { compressor: 0.6, eq31: 4, eq63: 3, eq250: -1, eq1k: 2, eq4k: 4, eq8k: 3, eq16k: 2, saturation: 0.15 },
 };
 
 /* ── Waveform renderer ── */
@@ -238,7 +239,7 @@ export function Studio() {
       </header>
 
       {/* File upload */}
-      <div className="flex flex-wrap items-center gap-4 align-center items-center justify-center mb-5">
+      <div className="flex flex-wrap items-center gap-4 p-3 align-center items-center justify-center mb-5 border-1 border-border rounded-md">
         <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary">
           + Upload Audio
           <input
@@ -407,9 +408,9 @@ export function Studio() {
 
 
         {/* Presets and Augmentation panels */}
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-[160px_1fr] xl:grid-cols-[160px_1fr_1fr]">
           {/* Preset Buttons */}
-          <div className="mt-4 flex w-full flex-col gap-4 px-3 p-auto">
+          <div className="flex w-full flex-col gap-3 px-2">
             <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">Presets</p>
             {Object.keys(PRESETS).map((name) => (
               <button
@@ -421,28 +422,23 @@ export function Studio() {
               </button>
             ))}
             <button
-              onClick={() =>
-                setSettings((s) => ({
-                  ...s,
-                  eqLow: defaultSettings.eqLow,
-                  eqMid: defaultSettings.eqMid,
-                  eqHigh: defaultSettings.eqHigh,
-                  resonance: defaultSettings.resonance,
-                  pitch: defaultSettings.pitch,
-                  harmonizer: defaultSettings.harmonizer,
-                  harmonizerInterval: defaultSettings.harmonizerInterval,
-                  chorus: defaultSettings.chorus,
-                  compressor: defaultSettings.compressor,
-                  saturation: defaultSettings.saturation,
-                  output: defaultSettings.output,
-                  reverb: defaultSettings.reverb,
-                  reverbSize: defaultSettings.reverbSize,
-                  delay: defaultSettings.delay,
-                  delayTime: defaultSettings.delayTime,
-                  delayFeedback: defaultSettings.delayFeedback,
-                  deEss: defaultSettings.deEss,
-                }))
-              }
+              onClick={() => {
+                // Reset all augmentation settings, keeping noise settings intact
+                const augKeys = [
+                  ...EQ_BANDS.map((b) => b.key),
+                  "pitch", "harmonizer", "harmonizerInterval",
+                  "chorus", "compressor", "saturation", "output",
+                  "reverb", "reverbSize", "delay", "delayTime",
+                  "delayFeedback", "deEss",
+                ] as const;
+                setSettings((s) => {
+                  const next = { ...s };
+                  for (const k of augKeys) {
+                    (next as Record<string, number>)[k] = defaultSettings[k];
+                  }
+                  return next;
+                });
+              }}
               className="w-full rounded-md border border-border px-3 py-1.5 text-center text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
             >
               Reset
@@ -450,41 +446,36 @@ export function Studio() {
           </div>
 
 
-          <Panel title="Equalizer">
-            <Knob
-              label="Low shelf"
-              value={settings.eqLow}
-              min={-18}
-              max={18}
-              step={0.5}
-              unit=" dB"
-              onChange={(v) => set("eqLow", v)}
-            />
-            <Knob
-              label="Mid"
-              value={settings.eqMid}
-              min={-18}
-              max={18}
-              step={0.5}
-              unit=" dB"
-              onChange={(v) => set("eqMid", v)}
-            />
-            <Knob
-              label="High shelf"
-              value={settings.eqHigh}
-              min={-18}
-              max={18}
-              step={0.5}
-              unit=" dB"
-              onChange={(v) => set("eqHigh", v)}
-            />
-            <Knob
-              label="Resonance"
-              value={settings.resonance}
-              min={-1}
-              max={1}
-              onChange={(v) => set("resonance", v)}
-            />
+          <Panel title="10-Band Equalizer" className="xl:col-span-1">
+            <div className="grid grid-cols-5 gap-x-3 gap-y-3 sm:grid-cols-10">
+              {EQ_BANDS.map((band) => (
+                <div key={band.key} className="flex flex-col items-center gap-1">
+                  <span className="font-mono text-[10px] text-accent">
+                    {settings[band.key].toFixed(0)} dB
+                  </span>
+                  <input
+                    type="range"
+                    min={-12}
+                    max={12}
+                    step={1}
+                    value={settings[band.key]}
+                    onChange={(e) => set(band.key, parseFloat(e.target.value))}
+                    className="fader h-36 w-5"
+                    style={{
+                      writingMode: "vertical-lr" as const,
+                      direction: "rtl" as const,
+                    }}
+                    title={`${band.desc} (${band.label} Hz)`}
+                  />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {band.label}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground/70">
+                    {band.desc}
+                  </span>
+                </div>
+              ))}
+            </div>
           </Panel>
 
           <Panel title="Voice">
@@ -522,6 +513,26 @@ export function Studio() {
             />
           </Panel>
 
+
+          <Panel title="Reverb">
+            <Knob
+              label="Mix"
+              value={settings.reverb}
+              min={0}
+              max={1}
+              onChange={(v) => set("reverb", v)}
+            />
+            <Knob
+              label="Room size"
+              value={settings.reverbSize}
+              min={0.2}
+              max={6}
+              step={0.1}
+              unit=" s"
+              onChange={(v) => set("reverbSize", v)}
+            />
+          </Panel>
+
           <Panel title="Dynamics & colour">
             <Knob
               label="Compressor"
@@ -545,25 +556,6 @@ export function Studio() {
               step={0.5}
               unit=" dB"
               onChange={(v) => set("output", v)}
-            />
-          </Panel>
-
-          <Panel title="Reverb">
-            <Knob
-              label="Mix"
-              value={settings.reverb}
-              min={0}
-              max={1}
-              onChange={(v) => set("reverb", v)}
-            />
-            <Knob
-              label="Room size"
-              value={settings.reverbSize}
-              min={0.2}
-              max={6}
-              step={0.1}
-              unit=" s"
-              onChange={(v) => set("reverbSize", v)}
             />
           </Panel>
 
@@ -592,6 +584,27 @@ export function Studio() {
           </Panel>
         </div>
 
+      </section>
+
+      <section>
+        <h3 className="text-md center">What is <i>Audio Auugment Studio</i>?</h3>
+        <p>This is a powerful, yet simple-to-use, web-based tool designed to transform your raw voice recordings into polished, studio-quality vocal tracks. Whether you're a musician looking to add harmonies, a podcaster enhancing clarity, a content creator needing vocal depth, or just someone wanting to sound better online, Audio Augment Studio gives you professional audio processing at your fingertips.</p>
+        <p>
+          <h2>How does it work?</h2>
+          <p>The app uses advanced audio processing algorithms to enhance your voice. Simply upload an audio file, select the desired effects, and the app will process the audio in real-time. You can adjust the settings to fine-tune the sound, and download the enhanced audio file for use in your projects.</p>
+        </p>
+        <p>
+          <h2>Who is it for?</h2>
+          <p>Musicians, podcasters, content creators, and anyone who wants to improve their vocal recordings.</p>
+        </p>
+        <p>
+          <h2>Why use it?</h2>
+          <p>It's free, easy to use, and gives you professional results. You can experiment with different effects and settings to find the perfect sound for your voice.</p>
+        </p>
+        <p>
+          <h2>How to use it?</h2>
+          <p>Simply upload an audio file, select the desired effects, and the app will process the audio in real-time. You can adjust the settings to fine-tune the sound, and download the enhanced audio file for use in your projects.</p>
+        </p>
       </section>
 
       {/* ── Footer ── */}

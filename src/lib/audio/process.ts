@@ -11,11 +11,17 @@ export type Settings = {
   pitch: number;
   harmonizer: number;
   harmonizerInterval: number;
-  resonance: number;
-  // eq (dB)
-  eqLow: number;
-  eqMid: number;
-  eqHigh: number;
+  // 10-band graphic EQ (dB gain per band)
+  eq31: number;   // 31 Hz  — Sub-bass
+  eq63: number;   // 63 Hz  — Bass
+  eq125: number;  // 125 Hz — Upper bass
+  eq250: number;  // 250 Hz — Low mids
+  eq500: number;  // 500 Hz — Mids
+  eq1k: number;   // 1 kHz  — Central mid band
+  eq2k: number;   // 2 kHz  — Upper mids
+  eq4k: number;   // 4 kHz  — Presence
+  eq8k: number;   // 8 kHz  — Brilliance
+  eq16k: number;  // 16 kHz — Air
   // dynamics / colour
   compressor: number;
   saturation: number;
@@ -29,6 +35,20 @@ export type Settings = {
   output: number;
 };
 
+/** Standard 10-band graphic EQ frequencies and their descriptions. */
+export const EQ_BANDS = [
+  { key: "eq31"  as const, freq: 31,    label: "31",  desc: "Sub-bass" },
+  { key: "eq63"  as const, freq: 63,    label: "63",  desc: "Bass" },
+  { key: "eq125" as const, freq: 125,   label: "125", desc: "Upper bass" },
+  { key: "eq250" as const, freq: 250,   label: "250", desc: "Low mids" },
+  { key: "eq500" as const, freq: 500,   label: "500", desc: "Mids" },
+  { key: "eq1k"  as const, freq: 1000,  label: "1K",  desc: "Central mid band" },
+  { key: "eq2k"  as const, freq: 2000,  label: "2K",  desc: "Upper mids" },
+  { key: "eq4k"  as const, freq: 4000,  label: "4K",  desc: "Presence" },
+  { key: "eq8k"  as const, freq: 8000,  label: "8K",  desc: "Brilliance" },
+  { key: "eq16k" as const, freq: 16000, label: "16K", desc: "Air" },
+] as const;
+
 export const defaultSettings: Settings = {
   denoise: 0.6,
   hiss: 0.5,
@@ -37,10 +57,16 @@ export const defaultSettings: Settings = {
   pitch: 0,
   harmonizer: 0,
   harmonizerInterval: 7,
-  resonance: 0,
-  eqLow: 0,
-  eqMid: 0,
-  eqHigh: 0,
+  eq31: 0,
+  eq63: 0,
+  eq125: 0,
+  eq250: 0,
+  eq500: 0,
+  eq1k: 0,
+  eq2k: 0,
+  eq4k: 0,
+  eq8k: 0,
+  eq16k: 0,
   compressor: 0.35,
   saturation: 0,
   reverb: 0,
@@ -150,34 +176,23 @@ export async function renderAugmented(
     chain(de);
   }
 
-  // Equalizer
-  const low = ctx.createBiquadFilter();
-  low.type = "lowshelf";
-  low.frequency.value = 200;
-  low.gain.value = s.eqLow;
-  chain(low);
-
-  const mid = ctx.createBiquadFilter();
-  mid.type = "peaking";
-  mid.frequency.value = 1200;
-  mid.Q.value = 0.9;
-  mid.gain.value = s.eqMid;
-  chain(mid);
-
-  const high = ctx.createBiquadFilter();
-  high.type = "highshelf";
-  high.frequency.value = 5000;
-  high.gain.value = s.eqHigh;
-  chain(high);
-
-  // Resonance / formant colour
-  if (s.resonance !== 0) {
-    const res = ctx.createBiquadFilter();
-    res.type = "peaking";
-    res.frequency.value = 900;
-    res.Q.value = 1 + Math.abs(s.resonance) * 6;
-    res.gain.value = s.resonance * 10;
-    chain(res);
+  // 10-band graphic equalizer
+  for (const band of EQ_BANDS) {
+    const gain = s[band.key];
+    if (gain === 0) continue; // skip bands at 0 dB for efficiency
+    const f = ctx.createBiquadFilter();
+    if (band.freq <= 31) {
+      f.type = "lowshelf";
+    } else if (band.freq >= 16000) {
+      f.type = "highshelf";
+    } else {
+      f.type = "peaking";
+      // Q ≈ 1.4 gives ~1-octave bandwidth, good for 10-band graphic EQ
+      f.Q.value = 1.4;
+    }
+    f.frequency.value = band.freq;
+    f.gain.value = gain;
+    chain(f);
   }
 
   // Saturation
