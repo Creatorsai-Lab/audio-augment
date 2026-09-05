@@ -14,7 +14,7 @@
     "desktop:build": "vite build --config electron/vite.config.ts",
     "desktop": "npm run desktop:build && electron electron/main.cjs",
     "desktop:package": "npm run desktop:build && electron-builder --win",
-    "web:build": "vite build --config web/vite.config.ts",
+    "web:build": "vite build --config web/vite.config.ts && node -e \"const fs=require('fs');fs.copyFileSync('web-dist/docs/index.html','web-dist/index.html');fs.rmSync('web-dist/docs',{recursive:true,force:true});\"",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

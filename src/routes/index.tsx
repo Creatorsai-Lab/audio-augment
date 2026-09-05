@@ -235,13 +235,32 @@ export function Studio() {
             alt="Audio Augment logo"
             className="h-12 w-12 object-contain"
           />
-          <h1 className="text-2xl font-bold tracking-tight text-accent">
-            Audio Augment
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-accent">Audio Augment</h1>
         </div>
 
         {/* Right Side: Action Buttons */}
         <div className="flex items-center gap-4">
+          {/* Home Button */}
+          <a
+            href="https://audio-augment.vercel.app/"
+            className="flex h-9 items-center justify-center gap-2 text-foreground"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </a>
+
           {/* Creators AI Lab Button - Glowing Animated Background */}
           <div className="group relative">
             {/* Animated Glow Layer */}
@@ -269,8 +288,8 @@ export function Studio() {
           <div className="flex h-8 items-center font-normal justify-center pt-1">
             <iframe
               src="https://ghbtns.com/github-btn.html?user=Creatorsai-Lab&repo=audio-augment&type=star&count=true&size=large"
-              width="150"
-              height="25"
+              width="120"
+              height="30"
               title="GitHub"
             ></iframe>
           </div>
@@ -304,8 +323,7 @@ export function Studio() {
           const f = e.dataTransfer.files[0];
           if (f) void loadFile(f);
         }}
-        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]"
-      >
+        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
 
         {/* Noise settings */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-panel)]">
@@ -356,8 +374,7 @@ export function Studio() {
             <button
               disabled={!original || noiseBusy}
               onClick={removeNoise}
-              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
-            >
+              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1">
               {noiseBusy ? "Working…" : "Remove Noise"}
             </button>
 

@@ -4,11 +4,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-const electronRoot = fileURLToPath(new URL("../electron", import.meta.url));
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 
 export default defineConfig({
-  root: electronRoot,
+  // Root is the project root so both docs/ and editor/ are reachable
+  root: projectRoot,
   base: "/",
   publicDir: path.resolve(projectRoot, "public"),
   plugins: [react(), tailwindcss()],
@@ -16,7 +16,13 @@ export default defineConfig({
     outDir: path.resolve(projectRoot, "web-dist"),
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(electronRoot, "index.html"),
+      input: {
+        // Landing page — will output to web-dist/docs/index.html
+        // A post-build script promotes it to web-dist/index.html
+        landing: path.resolve(projectRoot, "docs/index.html"),
+        // Studio SPA — will output to web-dist/editor/index.html
+        editor: path.resolve(projectRoot, "editor/index.html"),
+      },
     },
   },
 });
