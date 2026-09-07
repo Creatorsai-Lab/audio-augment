@@ -1,6 +1,25 @@
-import lamejs from "lamejs";
+type LameJs = {
+  Mp3Encoder: new (
+    channels: number,
+    sampleRate: number,
+    kbps: number,
+  ) => {
+    encodeBuffer(left: Int16Array, right?: Int16Array): Int8Array;
+    flush(): Int8Array;
+  };
+};
+
+declare global {
+  interface Window {
+    lamejs?: LameJs;
+  }
+}
 
 export function encodeMp3(buffer: AudioBuffer): Blob {
+  const lamejs = window.lamejs;
+  if (!lamejs) {
+    throw new Error("MP3 encoder is not available. Restart the application and try again.");
+  }
   const channels = Math.min(2, buffer.numberOfChannels);
   const encoder = new lamejs.Mp3Encoder(channels, buffer.sampleRate, 192);
   const samples = Array.from({ length: channels }, (_, channel) => buffer.getChannelData(channel));

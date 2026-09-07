@@ -212,12 +212,21 @@ export function Studio() {
   /* ── Download helper ── */
   const download = (buffer: AudioBuffer | null, suffix: string) => {
     if (!buffer) return;
-    const url = URL.createObjectURL(encodeMp3(buffer));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = (fileName?.replace(/\.[^.]+$/, "") ?? "audio") + suffix + ".mp3";
-    a.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try {
+      const blob = encodeMp3(buffer);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = (fileName?.replace(/\.[^.]+$/, "") ?? "audio") + suffix + ".mp3";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setAugStatus(`${suffix === "-augmented" ? "Augmented" : "Cleaned"} MP3 download started.`);
+    } catch (err) {
+      setAugStatus(`Download failed: ${(err as Error).message}`);
+    }
   };
 
   /* ══════════════════════════════════════════════════════════════════ */
