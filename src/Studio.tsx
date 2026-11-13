@@ -1,8 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Panel } from "../components/Panel";
-import { Knob } from "../components/Knob";
-import { Waveform } from "../components/Waveform";
+import { Panel } from "./components/Panel";
+import { Knob } from "./components/Knob";
+import { Waveform } from "./components/Waveform";
 import {
   augmentationKey,
   defaultSettings,
@@ -12,37 +11,45 @@ import {
   renderCleaned,
   type RackAudio,
   type Settings,
-} from "../lib/audio/process";
-import { encodeMp3 } from "../lib/audio/mp3";
-import { Player, type TrackAudio, type TrackId } from "../lib/audio/player";
-import { isAbort } from "../lib/audio/worker-client";
-
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Audio Augment | Audio Cleaner and Editor" },
-      {
-        name: "description",
-        content:
-          "A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips.",
-      },
-      { property: "og:title", content: "Audio Augment | Audio Cleaner and Editor" },
-      {
-        property: "og:description",
-        content:
-          "A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips.",
-      },
-    ],
-  }),
-  component: Studio,
-});
+} from "./lib/audio/process";
+import { encodeMp3 } from "./lib/audio/mp3";
+import { Player, type TrackAudio, type TrackId } from "./lib/audio/player";
+import { isAbort } from "./lib/audio/worker-client";
 
 /* ── Presets (augmentation-only, no cleanup keys) ── */
 const PRESETS: Record<string, Partial<Settings>> = {
   Podcast: { compressor: 0.5, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2 },
-  Educational: { compressor: 0.4, eq125: -2, eq250: 1, eq500: 1, eq1k: 3, eq2k: 4, eq4k: 3, eq8k: 1 },
-  Gaming: { compressor: 0.6, eq31: 4, eq63: 3, eq250: -1, eq1k: 2, eq4k: 4, eq8k: 3, eq16k: 2, saturation: 0.15 },
-  Best: { compressor: 0.4, saturation: 0.1, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2, output: 1 },
+  Educational: {
+    compressor: 0.4,
+    eq125: -2,
+    eq250: 1,
+    eq500: 1,
+    eq1k: 3,
+    eq2k: 4,
+    eq4k: 3,
+    eq8k: 1,
+  },
+  Gaming: {
+    compressor: 0.6,
+    eq31: 4,
+    eq63: 3,
+    eq250: -1,
+    eq1k: 2,
+    eq4k: 4,
+    eq8k: 3,
+    eq16k: 2,
+    saturation: 0.15,
+  },
+  Best: {
+    compressor: 0.4,
+    saturation: 0.1,
+    eq125: 2,
+    eq250: 1,
+    eq1k: 2,
+    eq4k: 3,
+    eq8k: 2,
+    output: 1,
+  },
 };
 
 const percent = (fraction: number) => `${Math.round(fraction * 100)}%`;
@@ -224,7 +231,6 @@ export function Studio() {
         onProgress: (f) => setNoiseStatus(`Removing noise… ${percent(f)}`),
       });
       setCleaned(result);
-      setSelectedSource("cleaned");
       setNoiseStatus("Noise removed successfully.");
     } catch (err) {
       if (!isAbort(err)) setNoiseStatus("Noise removal failed: " + message(err));
@@ -404,8 +410,8 @@ export function Studio() {
       <section
         onDragOver={(e) => e.preventDefault()}
         onDrop={dropFile}
-        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
-
+        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]"
+      >
         {/* Noise settings */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-panel)]">
           <Knob
@@ -461,10 +467,10 @@ export function Studio() {
             <button
               disabled={!original || noiseBusy}
               onClick={removeNoise}
-              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1">
+              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
+            >
               {noiseBusy ? "Working…" : "Remove Noise"}
             </button>
-
           </div>
           <div>
             <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -514,9 +520,7 @@ export function Studio() {
           >
             Cleaned audio
           </button>
-          {augStatus && (
-            <span className="text-sm text-muted-foreground">{augStatus}</span>
-          )}
+          {augStatus && <span className="text-sm text-muted-foreground">{augStatus}</span>}
         </div>
 
         {/* Augment Audio Preview */}
@@ -565,12 +569,13 @@ export function Studio() {
           </button>
         </div>
 
-
         {/* Presets and Augmentation panels */}
         <div className="mt-5 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
           {/* Preset Buttons */}
           <div className="flex w-full flex-col gap-3 px-2 md:w-[calc(20%-0.67rem)]">
-            <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">Presets</p>
+            <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">
+              Presets
+            </p>
             {Object.keys(PRESETS).map((name) => (
               <button
                 key={name}
@@ -584,9 +589,17 @@ export function Studio() {
               onClick={() => {
                 const augKeys = [
                   ...EQ_BANDS.map((b) => b.key),
-                  "pitch", "harmonizer", "harmonizerInterval",
-                  "chorus", "compressor", "saturation", "output",
-                  "reverb", "reverbSize", "delay", "delayTime",
+                  "pitch",
+                  "harmonizer",
+                  "harmonizerInterval",
+                  "chorus",
+                  "compressor",
+                  "saturation",
+                  "output",
+                  "reverb",
+                  "reverbSize",
+                  "delay",
+                  "delayTime",
                   "delayFeedback",
                 ] as const;
                 setSettings((s) => {
@@ -603,10 +616,16 @@ export function Studio() {
             </button>
           </div>
 
-          <Panel title="10-Band Equalizer" className="flex w-full flex-col md:w-[calc(45%-0.67rem)]">
+          <Panel
+            title="10-Band Equalizer"
+            className="flex w-full flex-col md:w-[calc(45%-0.67rem)]"
+          >
             <div className="grid h-full flex-1 grid-cols-5 gap-x-3 gap-y-3 sm:grid-cols-10">
               {EQ_BANDS.map((band) => (
-                <div key={band.key} className="flex h-full flex-col items-center justify-between gap-1">
+                <div
+                  key={band.key}
+                  className="flex h-full flex-col items-center justify-between gap-1"
+                >
                   <span className="font-mono text-[10px] text-accent">
                     {settings[band.key].toFixed(0)} dB
                   </span>
@@ -746,51 +765,42 @@ export function Studio() {
           What is Audio Augment Studio ?
         </h3>
         <p className="text-center leading-relaxed text-muted-foreground">
-          A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators and artists to edit their audio at their fingertips without any hassle.
+          A very simple and fast audio editing studio that works with great precision. It has been
+          designed and developed for content creators and artists to edit their audio at their
+          fingertips without any hassle.
         </p>
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">
-              How does it work?
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-secondary">How does it work?</h3>
             <p className="text-sm text-muted-foreground">
-              Everything runs inside your browser using signal-processing
-              algorithms. Upload an audio file, press play, and hear each effect
-              change live as you turn the controls.
+              Everything runs inside your browser using signal-processing algorithms. Upload an
+              audio file, press play, and hear each effect change live as you turn the controls.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">
-              Who is it for?
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-secondary">Who is it for?</h3>
             <p className="text-sm text-muted-foreground">
-              Musicians, podcasters, content creators, and absolutely anyone who
-              wants to dramatically improve the quality of their vocal recordings.
+              Musicians, podcasters, content creators, and absolutely anyone who wants to
+              dramatically improve the quality of their vocal recordings.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">
-              Why use it?
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-secondary">Why use it?</h3>
             <p className="text-sm text-muted-foreground">
-              It's fast, incredibly easy to use, and delivers professional results
-              instantly. You can safely experiment with settings to find your
-              perfect signature sound.
+              It's fast, incredibly easy to use, and delivers professional results instantly. You
+              can safely experiment with settings to find your perfect signature sound.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">
-              How to use it?
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-secondary">How to use it?</h3>
             <p className="text-sm text-muted-foreground">
-              Upload a file, select your effects, adjust the dials to fine-tune
-              your sound, and simply hit download to grab your studio-ready track
-              for your projects.
+              Upload a file, select your effects, adjust the dials to fine-tune your sound, and
+              simply hit download to grab your studio-ready track for your projects.
             </p>
           </div>
         </div>
@@ -800,21 +810,30 @@ export function Studio() {
           Frequently Asked Questions
         </h3>
         <div className="space-y-4">
-
           {/* FAQ 1 */}
           <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
             <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">
-                What audio formats are supported?
-              </h3>
+              <h3 className="m-0 text-base font-medium">What audio formats are supported?</h3>
               <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </span>
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                We currently support MP3 and WAV files for upload.
-                You can export your finished tracks in high quality MP3.
+                We currently support MP3 and WAV files for upload. You can export your finished
+                tracks in high quality MP3.
               </p>
             </div>
           </details>
@@ -822,18 +841,28 @@ export function Studio() {
           {/* FAQ 2 */}
           <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
             <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">
-                Is my audio stored on your servers?
-              </h3>
+              <h3 className="m-0 text-base font-medium">Is my audio stored on your servers?</h3>
               <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </span>
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                No. Your audio never leaves your device. All processing happens
-                locally in your browser, nothing is uploaded to a server, and
-                your files are gone from memory as soon as you close the tab.
+                No. Your audio never leaves your device. All processing happens locally in your
+                browser, nothing is uploaded to a server, and your files are gone from memory as
+                soon as you close the tab.
               </p>
             </div>
           </details>
@@ -841,18 +870,27 @@ export function Studio() {
           {/* FAQ 3 */}
           <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
             <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">
-                Do I need a professional microphone?
-              </h3>
+              <h3 className="m-0 text-base font-medium">Do I need a professional microphone?</h3>
               <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </span>
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                Not at all. A good mic always helps, but the noise removal and
-                enhancement tools are designed to clean up and enrich audio
-                recorded on ordinary headsets or phone mics.
+                Not at all. A good mic always helps, but the noise removal and enhancement tools are
+                designed to clean up and enrich audio recorded on ordinary headsets or phone mics.
               </p>
             </div>
           </details>
@@ -864,19 +902,29 @@ export function Studio() {
                 Can I use Audio Augment Studio on mobile?
               </h3>
               <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </span>
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                Yes. The studio interface is fully responsive, so you can upload,
-                process, and download audio directly from your smartphone's web
-                browser. Very long recordings need more memory than some phones
-                have, so a computer works best for those.
+                Yes. The studio interface is fully responsive, so you can upload, process, and
+                download audio directly from your smartphone's web browser. Very long recordings
+                need more memory than some phones have, so a computer works best for those.
               </p>
             </div>
           </details>
-
         </div>
       </section>
 

@@ -46,11 +46,11 @@ Grab the latest Windows installer from [Releases](../../releases).
 
 ## Architecture
 
-**Web** — TanStack Start (React + SSR) deployed on Cloudflare Workers
+**Web** — static React app built with Vite (landing page + `/editor`), deployed on Vercel
 **Desktop** — Electron shell loading a pre-built static bundle via `file://`
-**Audio engine** — 100% Web Audio API, runs in-process, no server calls
-**MP3 encoding** — lamejs, runs client-side
-**Styling** — Tailwind CSS v4 + Radix UI primitives
+**Audio engine** — Web Audio API plus a Web Worker for the heavy DSP, no server calls
+**MP3 encoding** — lamejs, runs client-side in the worker
+**Styling** — Tailwind CSS v4
 
 
 ---
@@ -71,6 +71,8 @@ first fork the repository
 git clone https://github.com/your-username/audio-augment.git
 cd audio-augment
 npm install
+
+# start the web studio (opens /editor/)
 npm run dev
 
 # start desktop app

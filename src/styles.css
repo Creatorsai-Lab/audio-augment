@@ -1,4 +1,3 @@
-@import "tw-animate-css";
 @import "tailwindcss";
 @source "../src";
 
@@ -162,4 +161,3 @@ input[type="range"].fader::-webkit-slider-runnable-track {
 input[type="range"].fader::-moz-range-track {
   background: transparent;
 }
-
