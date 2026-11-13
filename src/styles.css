@@ -277,7 +277,7 @@
 /* ── Upload button: the page's starting point ──
    A ring ripples out from the button and its arrow lifts, on a slow loop. */
 .upload-cta {
-  animation: upload-ring 2.2s ease-out infinite;
+  animation: upload-ring 1.8s ease-out infinite;
 }
 .upload-cta svg {
   animation: upload-lift 2.2s ease-in-out infinite;
@@ -288,7 +288,7 @@
   }
   70%,
   100% {
-    box-shadow: 0 0 0 14px transparent;
+    box-shadow: 0 0 0 10px transparent;
   }
 }
 @keyframes upload-lift {

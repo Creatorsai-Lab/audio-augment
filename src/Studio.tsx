@@ -43,7 +43,7 @@ export function Studio() {
     >
       <Header />
 
-      <main className="rise-in mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] flex-1 gap-14 px-4 pb-20 pt-8 sm:px-6 sm:pt-10">
+      <main className="rise-in mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] flex-1 gap-14 px-4 pb-20 pt-8 sm:px-6 sm:pt-10">
         <Upload s={s} onFile={(f) => openFile(f, "replace")} />
         <Trim s={s} onAdd={(f) => openFile(f, "append")} />
         <RemoveNoise s={s} />
@@ -64,7 +64,7 @@ export function Studio() {
 function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
         <a
           href="https://audio-augment.vercel.app/"
           className="flex items-center gap-2.5"
@@ -424,6 +424,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
               onActivate={s.setActiveTrack}
               onSeek={(t) => s.seek("edit", t)}
               onChange={s.placeTrack}
+              onSplit={s.splitTrack}
             />
           )}
         </div>
@@ -633,14 +634,14 @@ function Module(p: { title: string; children: ReactNode }) {
 function Augment({ s }: { s: StudioState }) {
   const [hearLive, setHearLive] = useState(true);
   const v = s.settings;
-  const track: TrackId = hearLive ? "augmented" : s.selectedSource;
+  const track: TrackId = hearLive ? "augmented" : "source";
   const buffer = hearLive ? (s.liveAudio?.main ?? null) : s.augSource;
 
   /** Switch between dry and augmented; if this section is playing, carry on from the same moment. */
   const listenTo = (live: boolean) => {
     setHearLive(live);
-    const next: TrackId = live ? "augmented" : s.selectedSource;
-    const mine = s.transport.track === "augmented" || s.transport.track === s.selectedSource;
+    const next: TrackId = live ? "augmented" : "source";
+    const mine = s.transport.track === "augmented" || s.transport.track === "source";
     if (s.transport.playing && mine && s.transport.track !== next) s.toggle(next);
   };
 
@@ -658,8 +659,9 @@ function Augment({ s }: { s: StudioState }) {
           value={s.selectedSource}
           onChange={s.setSelectedSource}
           options={[
-            { id: "original", label: "Original", disabled: !s.original },
-            { id: "cleaned", label: "Cleaned", disabled: !s.cleaned },
+            { id: "original", label: "Original", disabled: !s.sources.original },
+            { id: "cleaned", label: "Cleaned", disabled: !s.sources.cleaned },
+            { id: "trimmed", label: "Trimmed", disabled: !s.sources.trimmed },
           ]}
         />
       </SectionHead>

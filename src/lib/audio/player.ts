@@ -1,7 +1,11 @@
 import { buildRack, defaultSettings, tailSeconds, type Rack, type Settings } from "./process";
 
-/** "edit" is the trim & join timeline; the others are the pipeline stages. */
-export type TrackId = "edit" | "original" | "cleaned" | "augmented";
+/**
+ * "edit" is the trim timeline, "original" / "cleaned" are the noise section's
+ * before and after, "source" is whatever the augment section is working on
+ * (dry), and "augmented" is that same audio through the live effects.
+ */
+export type TrackId = "edit" | "original" | "cleaned" | "source" | "augmented";
 
 /** `harmony` is only used by the augmented track. */
 export type TrackAudio = { main: AudioBuffer; harmony?: AudioBuffer | null };

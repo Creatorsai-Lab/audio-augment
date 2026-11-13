@@ -72,6 +72,9 @@ const AUGMENTATION_KEYS = [
   "delayFeedback",
 ] as const;
 
+/** What the augment section can work on. */
+export type AugmentSource = "original" | "cleaned" | "trimmed";
+
 /**
  * All of the studio's state and behaviour, with no markup. The page in
  * Studio.tsx renders from this one hook.
@@ -91,7 +94,10 @@ export function useStudio() {
   const [original, setOriginal] = useState<AudioBuffer | null>(null);
   const [editStatus, setEditStatus] = useState<string>("");
   const [cleaned, setCleaned] = useState<AudioBuffer | null>(null);
-  const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("original");
+  /** The file exactly as it was uploaded, before any trimming. */
+  const [uploaded, setUploaded] = useState<AudioBuffer | null>(null);
+  /** Which audio the augment section works on. */
+  const [chosenSource, setSelectedSource] = useState<AugmentSource>("original");
   /** Last offline render, and what it was rendered from. */
   const [augmented, setAugmented] = useState<{
     buffer: AudioBuffer;
@@ -135,14 +141,31 @@ export function useStudio() {
   // The timeline's own result. It only reaches the later stages when the
   // user sends it there, so editing never disturbs their previews.
   const mix = useMemo(() => mixTracks(tracks), [tracks]);
-  const augSource = selectedSource === "original" ? original : cleaned;
+  // The timeline's result counts as "trimmed" once it differs from the upload
+  // (trimmed, moved, re-timed, duplicated or joined with another file).
+  const trimmed = mix !== uploaded ? mix : null;
+  // If the chosen source stops existing (an undo back to the untouched file,
+  // or a new timeline sent to noise removal), fall back to the original.
+  const selectedSource: AugmentSource =
+    (chosenSource === "trimmed" && !trimmed) || (chosenSource === "cleaned" && !cleaned)
+      ? "original"
+      : chosenSource;
+  const augSource =
+    selectedSource === "original" ? uploaded : selectedSource === "trimmed" ? trimmed : cleaned;
   const liveAudio = rackAudio && rackAudio.source === augSource ? rackAudio.audio : null;
   const augFresh =
     !!augmented && augmented.source === augSource && augmented.key === augmentationKey(settings);
 
   const audioFor = (track: TrackId): TrackAudio | null => {
     if (track === "augmented") return liveAudio;
-    const main = track === "edit" ? mix : track === "cleaned" ? cleaned : original;
+    const main =
+      track === "edit"
+        ? mix
+        : track === "cleaned"
+          ? cleaned
+          : track === "source"
+            ? augSource
+            : original;
     return main && { main };
   };
 
@@ -212,11 +235,13 @@ export function useStudio() {
           ? cleaned && { main: cleaned }
           : track === "edit"
             ? mix && { main: mix }
-            : original && { main: original };
+            : track === "source"
+              ? augSource && { main: augSource }
+              : original && { main: original };
     if (!audio || player.isCurrent(audio)) return;
     if (player.playing) player.play(track, audio);
     else player.seek(player.position(), track, audio);
-  }, [player, original, cleaned, liveAudio, mix]);
+  }, [player, original, cleaned, liveAudio, mix, augSource]);
 
   // After an edit the mix is new; put the timeline playhead back where it was.
   useEffect(() => {
@@ -335,6 +360,21 @@ export function useStudio() {
   const placeTrack = (id: number, placement: Placement) =>
     commit((list) => list.map((t) => (t.id === id ? { ...t, ...placement } : t)));
 
+  /** Cut one track in two at `cut` (a sample position in its audio). The right-hand part goes on a new lane, still in the same place on the timeline. */
+  const splitTrack = (id: number, cut: number) =>
+    commit((list) => {
+      const index = list.findIndex((t) => t.id === id);
+      const track = list[index];
+      if (!track || cut <= track.start || cut >= track.end) return list;
+      const right = {
+        ...track,
+        id: nextTrackId.current++,
+        start: cut,
+        at: track.at + cut - track.start,
+      };
+      return [...list.slice(0, index), { ...track, end: cut }, right, ...list.slice(index + 1)];
+    });
+
   const duplicateTrack = () =>
     commit((list) => {
       const index = list.findIndex((t) => t.id === activeTrack);
@@ -403,6 +443,7 @@ export function useStudio() {
         startPipeline(buf, file.name);
         setTimeline({ past: [], tracks: [track], future: [] });
         setFileName(file.name);
+        setUploaded(buf);
       }
     } catch {
       if (load === loadRef.current) {
@@ -527,6 +568,8 @@ export function useStudio() {
     cleaned,
     augmented,
     augSource,
+    /** What each augment source would be right now (null = not available yet). */
+    sources: { original: uploaded, cleaned, trimmed },
     augFresh,
     liveAudio,
     selectedSource,
@@ -553,6 +596,7 @@ export function useStudio() {
     canRedo: timeline.future.length > 0,
     placeTrack,
     duplicateTrack,
+    splitTrack,
     removeTrack,
     changeSpeed,
     undo,

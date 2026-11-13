@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { timelineEnd, type Track } from "../lib/audio/edit";
 import type { TrackId } from "../lib/audio/player";
 
@@ -75,22 +83,46 @@ type LaneProps = {
   highlighted: boolean;
   onActivate: (id: number) => void;
   onChange: (id: number, placement: Placement) => void;
+  /** Cut the track in two at a sample position in its audio. */
+  onSplit: (id: number, cut: number) => void;
   onSeek: (seconds: number) => void;
 };
 
 type Drag = Placement & { mode: "start" | "end" | "move"; x: number; from: Placement };
 
-function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSeek }: LaneProps) {
+function Lane({
+  track,
+  view,
+  snapPoints,
+  highlighted,
+  onActivate,
+  onChange,
+  onSplit,
+  onSeek,
+}: LaneProps) {
   const rate = track.buffer.sampleRate;
   const laneRef = useRef<HTMLDivElement>(null);
   // While dragging, the new placement lives here; it is committed (one undo
   // step, one re-mix) when the pointer is released.
   const [drag, setDrag] = useState<Drag | null>(null);
   const { start, end, at } = drag ?? track;
+  // Right-click menu: where it opened on screen, and the moment of the audio under the pointer.
+  const [menu, setMenu] = useState<{ x: number; y: number; cut: number } | null>(null);
+
+  const openMenu = (e: MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const box = laneRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    onActivate(track.id);
+    const onTimeline = ((e.clientX - box.left) / box.width) * view;
+    const cut = Math.round(track.start + onTimeline - track.at);
+    setMenu({ x: e.clientX, y: e.clientY, cut: Math.min(track.end, Math.max(track.start, cut)) });
+  };
 
   const handlers = (mode: Drag["mode"]) => ({
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
+      if (e.button !== 0) return; // right-click opens the menu instead of dragging
       onActivate(track.id);
       const from = { start: track.start, end: track.end, at: track.at };
       setDrag({ ...from, mode, x: e.clientX, from });
@@ -154,6 +186,7 @@ function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSe
       }}
     >
       <div
+        onContextMenu={openMenu}
         className={`absolute inset-y-3 flex overflow-hidden rounded-md bg-background shadow-sm ${highlighted ? "ring-2 ring-trim" : "ring-1 ring-border"}`}
         style={{ left: `${(at / view) * 100}%`, width: `${((end - start) / view) * 100}%` }}
       >
@@ -189,7 +222,101 @@ function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSe
           {clock(labelAt / rate, 2)}
         </span>
       )}
+      {menu && (
+        <ClipMenu
+          x={menu.x}
+          y={menu.y}
+          time={clock((track.at + menu.cut - track.start) / rate, 1)}
+          // A cut closer than this to either edge would leave an unusably short piece.
+          canCut={
+            menu.cut - track.start >= MIN_SECONDS * rate &&
+            track.end - menu.cut >= MIN_SECONDS * rate
+          }
+          onClose={() => setMenu(null)}
+          onSplit={() => onSplit(track.id, menu.cut)}
+          onRemoveLeft={() =>
+            onChange(track.id, {
+              start: menu.cut,
+              end: track.end,
+              at: track.at + menu.cut - track.start,
+            })
+          }
+          onRemoveRight={() =>
+            onChange(track.id, { start: track.start, end: menu.cut, at: track.at })
+          }
+        />
+      )}
     </div>
+  );
+}
+
+/** The right-click menu of a clip: three actions at the moment that was clicked. */
+function ClipMenu(p: {
+  x: number;
+  y: number;
+  /** Timeline time under the pointer, for the heading. */
+  time: string;
+  canCut: boolean;
+  onClose: () => void;
+  onSplit: () => void;
+  onRemoveLeft: () => void;
+  onRemoveRight: () => void;
+}) {
+  const { onClose } = p;
+
+  // Any click elsewhere, Escape, scrolling or resizing dismisses the menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("pointerdown", onClose);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("resize", onClose);
+    return () => {
+      window.removeEventListener("pointerdown", onClose);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("resize", onClose);
+    };
+  }, [onClose]);
+
+  const item =
+    "flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] transition hover:bg-muted disabled:pointer-events-none disabled:opacity-35";
+  const run = (action: () => void) => () => {
+    action();
+    onClose();
+  };
+
+  // Rendered straight into <body>: inside the page it would be positioned
+  // relative to the animated <main> instead of the screen, landing far from
+  // the pointer.
+  return createPortal(
+    <div
+      role="menu"
+      // Opens exactly at the pointer; only nudged when that would run off the
+      // right or bottom edge of the screen.
+      style={{
+        left: Math.max(8, Math.min(p.x, window.innerWidth - 208)),
+        top: Math.max(8, Math.min(p.y, window.innerHeight - 168)),
+      }}
+      className="fixed z-50 w-48 rounded-xl border border-border bg-card p-1.5 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)]"
+      // Clicks inside the menu must not reach the window listener that closes it.
+      onPointerDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <p className="px-3 pb-1.5 pt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        At {p.time}
+      </p>
+      <button role="menuitem" className={item} disabled={!p.canCut} onClick={run(p.onSplit)}>
+        Split here
+      </button>
+      <button role="menuitem" className={item} disabled={!p.canCut} onClick={run(p.onRemoveLeft)}>
+        Remove left part
+      </button>
+      <button role="menuitem" className={item} disabled={!p.canCut} onClick={run(p.onRemoveRight)}>
+        Remove right part
+      </button>
+    </div>,
+    document.body,
   );
 }
 
@@ -210,6 +337,8 @@ type TimelineProps = {
   onSeek: (seconds: number) => void;
   /** Trim or slide a track. */
   onChange: (id: number, placement: Placement) => void;
+  /** Cut a track in two at a sample position in its audio. */
+  onSplit: (id: number, cut: number) => void;
   /** Element that receives the "position / total" text every frame. */
   readout?: RefObject<HTMLSpanElement | null>;
 };
@@ -326,6 +455,7 @@ export function Timeline(p: TimelineProps) {
                 highlighted={track.id === p.activeId}
                 onActivate={p.onActivate}
                 onChange={p.onChange}
+                onSplit={p.onSplit}
                 onSeek={p.onSeek}
               />
             ))}

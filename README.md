@@ -1,4 +1,5 @@
 # Audio Augment Studio
+
 _by Creators AI Lab_
 
 A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators to edit their audio at their fingertips without any hassle.
@@ -14,17 +15,20 @@ A very simple and fast audio editing studio that works with great precision. It 
 Drop an MP3 or WAV and professional cleaned and edite audio. It has **_three_** stages:
 
 **01 Trim**
+
 - Trim, move and join clips on a timeline
 - Duplicate a clip to repeat a part
 - Change speed (0.5× to 2×) without changing pitch
 
 **02 Remove Noise**
+
 - Background noise reduction
 - Hiss reduction
 - Breath reduction
 - Sibilance (de-ess) reduction
 
 **03 Augment & Effects** (heard live as you move the controls)
+
 - 10-band equaliser
 - Pitch shift and harmonizer
 - Compressor and saturation
@@ -54,7 +58,6 @@ Grab the latest Windows installer from [Releases](../../releases).
 **MP3 encoding** — lamejs, runs client-side in the worker
 **Styling** — Tailwind CSS v4, fonts bundled locally (no external requests)
 
-
 ---
 
 ## User Guide
@@ -68,6 +71,7 @@ Full usage documentation — every control explained, workflows, and tips:
 
 **Requirements:** Node.js 20+, npm
 first fork the repository
+
 ```bash
 # your forked repo
 git clone https://github.com/your-username/audio-augment.git
@@ -84,4 +88,12 @@ npm run desktop
 ```bash
 # build locally
 npm run desktop:package
+```
+
+pre checks
+```bash
+npm run format        # auto-fix formatting (Prettier)
+npm run lint          # ESLint; formatting problems show up here as errors too
+npx tsc --noEmit      # type-check
+npm run web:build     # the exact build Vercel runs
 ```
