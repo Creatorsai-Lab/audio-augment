@@ -3,7 +3,7 @@
 import lameSource from "lamejs/lame.min.js?raw";
 import { peakingFilter } from "./biquad";
 import { denoiseChannel } from "./denoise";
-import { pitchShiftChannels } from "./pitch";
+import { changeSpeedChannels, pitchShiftChannels } from "./pitch";
 
 export type CleanJob = {
   type: "clean";
@@ -29,7 +29,15 @@ export type Mp3Job = {
   kbps: number;
 };
 
-export type Job = CleanJob | PitchJob | Mp3Job;
+export type SpeedJob = {
+  type: "speed";
+  channels: Float32Array[];
+  sampleRate: number;
+  /** 2 = twice as fast, half as long. Pitch is kept. */
+  speed: number;
+};
+
+export type Job = CleanJob | PitchJob | SpeedJob | Mp3Job;
 
 export type JobResult<J extends Job> = J extends Mp3Job
   ? { chunks: Uint8Array<ArrayBuffer>[] }
@@ -75,6 +83,11 @@ function pitch(job: PitchJob, onProgress: Progress) {
   return { channels: channels as Float32Array<ArrayBuffer>[] };
 }
 
+function speed(job: SpeedJob, onProgress: Progress) {
+  const channels = changeSpeedChannels(job.channels, job.speed, job.sampleRate, onProgress);
+  return { channels: channels as Float32Array<ArrayBuffer>[] };
+}
+
 function toPcm16(samples: Float32Array): Int16Array {
   const pcm = new Int16Array(samples.length);
   for (let i = 0; i < samples.length; i++) {
@@ -111,7 +124,9 @@ export function executeJob<J extends Job>(job: J, onProgress: Progress): JobResu
       ? clean(job, onProgress)
       : job.type === "pitch"
         ? pitch(job, onProgress)
-        : mp3(job, onProgress);
+        : job.type === "speed"
+          ? speed(job, onProgress)
+          : mp3(job, onProgress);
   return result as JobResult<J>;
 }
 

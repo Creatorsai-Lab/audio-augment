@@ -11,26 +11,28 @@ A very simple and fast audio editing studio that works with great precision. It 
 
 ## What it does
 
-Drop an MP3 or WAV and professional cleaned and edite audio. It provide **_two_** independent processing stages:
+Drop an MP3 or WAV and professional cleaned and edite audio. It has **_three_** stages:
 
-**Stage 1: Noise Removal**
+**01 Trim**
+- Trim, move and join clips on a timeline
+- Duplicate a clip to repeat a part
+- Change speed (0.5× to 2×) without changing pitch
+
+**02 Remove Noise**
 - Background noise reduction
 - Hiss reduction
 - Breath reduction
 - Sibilance (de-ess) reduction
 
-**Stage 2: Audio Augmentation**
-- 3-band EQ (Low / Mid / High)
-- Pitch shift
-- Harmonizer
-- Compressor
-- Saturation
+**03 Augment & Effects** (heard live as you move the controls)
+- 10-band equaliser
+- Pitch shift and harmonizer
+- Compressor and saturation
 - Reverb + room size
-- Delay + feedback
+- Echo + repeats
 - Chorus
-- Resonance
 
-Built-in presets: **Podcast**, **Radio**, **Cinematic**, **Robot**
+Built-in presets: **Podcast**, **Educational**, **Gaming**, **Best**
 
 > Export as MP3 at any stage, **cleaned** audio or **augmented** audio
 
@@ -50,7 +52,7 @@ Grab the latest Windows installer from [Releases](../../releases).
 **Desktop** — Electron shell loading a pre-built static bundle via `file://`
 **Audio engine** — Web Audio API plus a Web Worker for the heavy DSP, no server calls
 **MP3 encoding** — lamejs, runs client-side in the worker
-**Styling** — Tailwind CSS v4
+**Styling** — Tailwind CSS v4, fonts bundled locally (no external requests)
 
 
 ---

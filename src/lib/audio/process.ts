@@ -171,6 +171,19 @@ export async function pitchBuffer(
   return toAudioBuffer(channels, source.sampleRate);
 }
 
+/** Speed change that keeps pitch (2 = twice as fast), run in a worker. */
+export async function speedBuffer(
+  source: AudioBuffer,
+  speed: number,
+  opts: JobOptions = {},
+): Promise<AudioBuffer> {
+  const { channels } = await runJob(
+    { type: "speed", channels: channelCopies(source), sampleRate: source.sampleRate, speed },
+    opts,
+  );
+  return toAudioBuffer(channels, source.sampleRate);
+}
+
 /** What the rack plays: the (pitch-shifted) voice plus an optional harmony copy. */
 export type RackAudio = { main: AudioBuffer; harmony: AudioBuffer | null };
 

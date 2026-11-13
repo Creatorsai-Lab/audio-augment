@@ -7,6 +7,11 @@
 export type Track = {
   id: number;
   name: string;
+  /** The file as decoded. */
+  source: AudioBuffer;
+  /** Playback speed applied to it (1 = unchanged). Pitch is kept. */
+  speed: number;
+  /** `source` at `speed`: the audio that `start`, `end` and `at` refer to. */
   buffer: AudioBuffer;
   /** Kept span of the file. */
   start: number;

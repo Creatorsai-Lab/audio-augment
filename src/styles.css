@@ -1,20 +1,17 @@
 @import "tailwindcss";
+@import "@fontsource-variable/instrument-sans/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "@fontsource/instrument-serif/400-italic.css";
 @source "../src";
 
-@custom-variant dark (&:is(.dark *));
-
 /*
- * Design system definition.
+ * Design tokens.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
+ * :root holds the actual values. The @theme inline block maps them to Tailwind
+ * utilities (--color-primary -> bg-primary, text-primary, ...).
  *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * To add a colour: define it in :root, then register it in @theme inline as
+ * --color-<name>: var(--<name>).
  */
 
 @theme inline {
@@ -23,141 +20,203 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
-  --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-ring-offset-background: var(--background);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-trim: var(--trim);
+  --color-done: var(--done);
 }
 
 :root {
+  color-scheme: dark;
   --radius: 0.625rem;
-  --background: #fff9f3;
-  --foreground: #645a51;
-  --card: #ffffff;
-  --card-foreground: #645a51;
-  --popover: #ffffff;
-  --popover-foreground: #645a51;
-  --primary: #c75d3a;
-  --primary-foreground: #fff9f3;
-  --secondary: #af6d58;
-  --secondary-foreground: #fff9f3;
-  --muted: #eae6e1;
-  --muted-foreground: #8b7f75;
-  --accent: #c75d3a;
-  --accent-foreground: #fff9f3;
-  --destructive: #b5403a;
-  --destructive-foreground: #fff9f3;
-  --border: #e8dfd3;
-  --input: #e8dfd3;
-  --ring: #c75d3a;
-  --chart-1: #c75d3a;
-  --chart-2: #af6d58;
-  --chart-3: #5a7a3e;
-  --chart-4: #d4a04c;
-  --chart-5: #6b7b8c;
-  --sidebar: #fff9f3;
-  --sidebar-foreground: #645a51;
-  --sidebar-primary: #c75d3a;
-  --sidebar-primary-foreground: #fff9f3;
-  --sidebar-accent: #eae6e1;
-  --sidebar-accent-foreground: #645a51;
-  --sidebar-border: #e8dfd3;
-  --sidebar-ring: #c75d3a;
+  --background: #0f1011;
+  --foreground: #ecebe4;
+  --card: #17181a;
+  --muted: #232428;
+  --muted-foreground: #92918a;
+  --border: #2a2c30;
+  --primary: #ff7a45; /* the one signal colour: actions, waveforms, values */
+  --primary-foreground: #160f0b;
+  --secondary: #34363c; /* unfilled slider tracks */
+  --ring: #ff7a45;
+  --trim: #ffb53c; /* trim handles on timeline clips */
+  --done: #57d6a8; /* completed-stage ticks */
+  --grid-line: rgb(255 255 255 / 0.045);
+  --lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -24px rgb(0 0 0 / 0.8);
 
-  --gradient-rack: linear-gradient(180deg, #fff9f3 0%, #f7eee5 100%);
-  --shadow-panel: 0 1px 3px rgba(139, 63, 35, 0.06), 0 4px 16px rgba(139, 63, 35, 0.08);
+  /* Reserve the scrollbar's space so switching stages never shifts the layout. */
+  scrollbar-gutter: stable;
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary) transparent;
   }
 
   body {
-    background: var(--gradient-rack);
-    background-attachment: fixed;
-    color: var(--color-foreground);
-    font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family:
+      "Instrument Sans Variable",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
   }
 }
 
-@utility fader {
+.font-mono {
+  font-family: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-feature-settings: "zero", "tnum";
+}
+
+/* Serif italic accent used in the wordmark and headlines. */
+.serif-accent {
+  font-family: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Small-caps mono label used for every "instrument" caption. */
+.label-caps {
+  font-family: "JetBrains Mono Variable", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--lift);
+}
+
+.stage-title {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 640px) {
+  .stage-title {
+    font-size: 1.75rem;
+  }
+}
+
+/* Faint graph-paper grid behind the upload zone. */
+.grid-paper {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%);
+}
+
+/* Swipeable rows (preset chips) scroll without showing a scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Horizontal slider ── */
+.slider {
   appearance: none;
-  height: 0.375rem;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px; /* tall hit area, thin visible track */
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
   border-radius: 999px;
   background: linear-gradient(
     to right,
-    var(--color-accent) var(--pct, 0%),
-    var(--color-secondary) var(--pct, 0%)
+    var(--primary) var(--pct, 0%),
+    var(--secondary) var(--pct, 0%)
   );
-  outline: none;
-
-  &::-webkit-slider-thumb {
-    appearance: none;
-    width: 0.95rem;
-    height: 0.95rem;
-    border-radius: 999px;
-    background: var(--color-primary);
-    border: 2px solid var(--color-card);
-    box-shadow: 0 2px 6px oklch(0 0 0 / 60%);
-    cursor: pointer;
-  }
-
-  &::-moz-range-thumb {
-    width: 0.95rem;
-    height: 0.95rem;
-    border: 2px solid var(--color-card);
-    border-radius: 999px;
-    background: var(--color-primary);
-    cursor: pointer;
-  }
+}
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--primary) var(--pct, 0%),
+    var(--secondary) var(--pct, 0%)
+  );
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--foreground);
+  border: 4px solid var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+  transition: transform 0.12s ease;
+}
+.slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--foreground);
+  border: 4px solid var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 
-/* Vertical fader for 10-band graphic EQ */
-input[type="range"].fader {
-  &[style*="vertical"] {
-    width: 4px;
-    height: 6rem;
-    background: var(--color-border);
-    border-radius: 999px;
+/* Stage panels ease in when you switch between them. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
-
-input[type="range"].fader::-webkit-slider-runnable-track {
-  background: transparent;
+.rise-in {
+  animation: rise-in 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-
-input[type="range"].fader::-moz-range-track {
-  background: transparent;
+@media (prefers-reduced-motion: reduce) {
+  .rise-in {
+    animation: none;
+  }
 }

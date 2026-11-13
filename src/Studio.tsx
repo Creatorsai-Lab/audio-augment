@@ -1,1093 +1,934 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Editor, type Placement } from "./components/Editor";
-import { Panel } from "./components/Panel";
-import { Knob } from "./components/Knob";
+// The studio page. All behaviour comes from useStudio; this file is the
+// interface: one stage on screen at a time, and a single transport docked at
+// the bottom.
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Timeline } from "./components/Timeline";
 import { Waveform } from "./components/Waveform";
-import {
-  augmentationKey,
-  defaultSettings,
-  EQ_BANDS,
-  PitchCache,
-  renderAugmented,
-  renderCleaned,
-  type RackAudio,
-  type Settings,
-} from "./lib/audio/process";
-import { mixTracks, timelineEnd, type Track } from "./lib/audio/edit";
-import { encodeMp3 } from "./lib/audio/mp3";
-import { Player, type TrackAudio, type TrackId } from "./lib/audio/player";
-import { isAbort } from "./lib/audio/worker-client";
+import { EQ_BANDS } from "./lib/audio/process";
+import type { TrackId } from "./lib/audio/player";
+import { PRESETS, useStudio, type StudioState } from "./useStudio";
+import { button } from "./components/classes";
+import { Dial, EqFader, GitHubMark, Icon, Segmented, type IconName } from "./components/controls";
 
-/* ── Presets (augmentation-only, no cleanup keys) ── */
-const PRESETS: Record<string, Partial<Settings>> = {
-  Podcast: { compressor: 0.5, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2 },
-  Educational: {
-    compressor: 0.4,
-    eq125: -2,
-    eq250: 1,
-    eq500: 1,
-    eq1k: 3,
-    eq2k: 4,
-    eq4k: 3,
-    eq8k: 1,
+type Stage = "arrange" | "clean" | "enhance";
+
+const STAGES: readonly { id: Stage; number: string; title: string; blurb: string }[] = [
+  { id: "arrange", number: "01", title: "Trim", blurb: "Trim, repeat, re-time and join clips." },
+  {
+    id: "clean",
+    number: "02",
+    title: "Remove Noise",
+    blurb: "Take out noise, hiss, breaths and harsh S sounds.",
   },
-  Gaming: {
-    compressor: 0.6,
-    eq31: 4,
-    eq63: 3,
-    eq250: -1,
-    eq1k: 2,
-    eq4k: 4,
-    eq8k: 3,
-    eq16k: 2,
-    saturation: 0.15,
+  {
+    id: "enhance",
+    number: "03",
+    title: "Augment & Effects",
+    blurb: "Shape the voice and hear every change live.",
   },
-  Best: {
-    compressor: 0.4,
-    saturation: 0.1,
-    eq125: 2,
-    eq250: 1,
-    eq1k: 2,
-    eq4k: 3,
-    eq8k: 2,
-    output: 1,
-  },
+];
+
+const clock = (seconds: number) => {
+  const s = Math.max(0, seconds);
+  const m = Math.floor(s / 60);
+  return `${m}:${(s - m * 60).toFixed(1).padStart(4, "0")}`;
 };
 
-const percent = (fraction: number) => `${Math.round(fraction * 100)}%`;
-const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+const percentIn = (status: string) => {
+  const match = /(\d+)%/.exec(status);
+  return match ? Number(match[1]) : null;
+};
 
 /* ══════════════════════════════════════════════════════════════════════ */
 
 export function Studio() {
-  /* ── State ── */
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [fileName, setFileName] = useState<string | null>(null);
-  /** Trim / join editor: the tracks (rows), with history for undo and redo. */
-  const [timeline, setTimeline] = useState<{
-    past: Track[][];
-    tracks: Track[];
-    future: Track[][];
-  }>({ past: [], tracks: [], future: [] });
-  const [activeTrack, setActiveTrack] = useState<number | null>(null);
-  const [editStatus, setEditStatus] = useState<string>("");
-  const [cleaned, setCleaned] = useState<AudioBuffer | null>(null);
-  const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("original");
-  /** Last offline render, and what it was rendered from. */
-  const [augmented, setAugmented] = useState<{
-    buffer: AudioBuffer;
-    source: AudioBuffer;
-    key: string;
-  } | null>(null);
-  /** What the live preview plays: the source after pitch shifting, plus the harmony voice. */
-  const [rackAudio, setRackAudio] = useState<{ source: AudioBuffer; audio: RackAudio } | null>(
-    null,
-  );
+  const s = useStudio();
+  const [stage, setStage] = useState<Stage>("arrange");
+  // What the transport plays in each stage.
+  const [hearCleaned, setHearCleaned] = useState(false);
+  const [hearLive, setHearLive] = useState(true);
 
-  const [noiseStatus, setNoiseStatus] = useState<string>("");
-  const [augStatus, setAugStatus] = useState<string>("");
-  const [noiseBusy, setNoiseBusy] = useState(false);
-  const [augBusy, setAugBusy] = useState(false);
-  const [exporting, setExporting] = useState<"edited" | "cleaned" | "augmented" | null>(null);
-  const [transport, setTransport] = useState<{ track: TrackId | null; playing: boolean }>({
-    track: null,
-    playing: false,
-  });
-
-  const [player] = useState(() => new Player());
-  const [pitchCache] = useState(() => new PitchCache());
-  const loadRef = useRef(0);
-  const nextTrackId = useRef(1);
-  const keepHead = useRef<number | null>(null);
-  // Edits can be committed after an await (decoding a file to append), so they
-  // read the timeline through a ref rather than a possibly stale closure.
-  const timelineRef = useRef(timeline);
-  timelineRef.current = timeline;
-  const noiseJob = useRef<AbortController | null>(null);
-  const augJob = useRef<AbortController | null>(null);
-
-  /* ── Settings helper ── */
-  const set = <K extends keyof Settings>(k: K, v: Settings[K]) =>
-    setSettings((s) => ({ ...s, [k]: v }));
-
-  /* ── Derived ── */
-  const tracks = timeline.tracks;
-  // Everything downstream works on the mixed-down timeline.
-  const original = useMemo(() => mixTracks(tracks), [tracks]);
-  const augSource = selectedSource === "original" ? original : cleaned;
-  const liveAudio = rackAudio && rackAudio.source === augSource ? rackAudio.audio : null;
-  const augFresh =
-    !!augmented && augmented.source === augSource && augmented.key === augmentationKey(settings);
-
-  const audioFor = (track: TrackId): TrackAudio | null => {
-    if (track === "augmented") return liveAudio;
-    // The editor's timeline and the "original" preview play the same mix,
-    // but as separate tracks so each has its own playhead and button.
-    const main = track === "cleaned" ? cleaned : original;
-    return main && { main };
-  };
-
-  /* ── Transport ── */
+  // Once noise removal finishes, the obvious next thing is to listen to it —
+  // including when the "before" audio is already playing.
+  const latest = useRef(s);
+  latest.current = s;
+  const cleaned = s.cleaned;
   useEffect(() => {
-    player.onChange = () => setTransport({ track: player.track, playing: player.playing });
-    return () => player.dispose();
-  }, [player]);
-
-  // The live rack follows every control as it moves.
-  useEffect(() => player.setSettings(settings), [player, settings]);
-
-  const getPosition = useCallback(() => player.position(), [player]);
-
-  const toggle = (track: TrackId) => {
-    if (transport.playing && transport.track === track) return player.pause();
-    const audio = audioFor(track);
-    if (audio) player.play(track, audio);
-  };
-
-  const seek = (track: TrackId, seconds: number) => {
-    const audio = audioFor(track);
-    if (audio) player.seek(seconds, track, audio);
-  };
-
-  const playLabel = (track: TrackId, idle: string) =>
-    transport.playing && transport.track === track ? "⏸ Pause" : idle;
-
-  /* ── Live preview audio: pitch / harmony are pre-shifted in a worker ── */
-  const { pitch, harmonizerInterval } = settings;
-  const harmonise = settings.harmonizer > 0;
-  useEffect(() => {
-    if (!augSource) return setRackAudio(null);
-    const voice = { pitch, harmonizer: harmonise ? 1 : 0, harmonizerInterval };
-    const ready = pitchCache.peek(augSource, voice);
-    if (ready) return setRackAudio({ source: augSource, audio: ready });
-
-    // Wait for the knob to settle; the previous audio keeps playing meanwhile.
-    const job = new AbortController();
-    const timer = setTimeout(() => {
-      setAugStatus("Updating pitch… 0%");
-      pitchCache
-        .prepare(augSource, voice, {
-          signal: job.signal,
-          onProgress: (f) => setAugStatus(`Updating pitch… ${percent(f)}`),
-        })
-        .then((audio) => {
-          setRackAudio({ source: augSource, audio });
-          setAugStatus("");
-        })
-        .catch((err) => {
-          if (!isAbort(err)) setAugStatus("Pitch shift failed: " + message(err));
-        });
-    }, 250);
-    return () => {
-      clearTimeout(timer);
-      job.abort();
-    };
-  }, [augSource, pitch, harmonise, harmonizerInterval, pitchCache]);
-
-  // When the audio behind the current track is replaced (re-cleaned, new pitch,
-  // different source), swap it in at the playhead.
-  useEffect(() => {
-    const track = player.track;
-    if (!track) return;
-    const audio =
-      track === "augmented"
-        ? liveAudio
-        : track === "cleaned"
-          ? cleaned && { main: cleaned }
-          : original && { main: original };
-    if (!audio || player.isCurrent(audio)) return;
-    if (player.playing) player.play(track, audio);
-    else player.seek(player.position(), track, audio);
-  }, [player, original, cleaned, liveAudio]);
-
-  // After an edit the mix is new; put the timeline playhead back where it was.
-  useEffect(() => {
-    const at = keepHead.current;
-    keepHead.current = null;
-    if (at !== null && original) player.seek(at, "edit", { main: original });
-  }, [player, original]);
-
-  /* ── Trim / join editor ── */
-  // Anything made from the old audio (cleaned, augmented, pitch cache) is void after an edit.
-  const invalidateDownstream = () => {
-    noiseJob.current?.abort();
-    noiseJob.current = null;
-    augJob.current?.abort();
-    augJob.current = null;
-    // Remember where the timeline playhead was so an edit doesn't rewind it.
-    keepHead.current = player.track === "edit" ? player.position() : null;
-    player.stop();
-    pitchCache.clear();
-    setCleaned(null);
-    setAugmented(null);
-    setSelectedSource("original");
-    setNoiseBusy(false);
-    setAugBusy(false);
-    setAugStatus("");
-    setEditStatus("");
-  };
-
-  const describe = (list: readonly Track[]) => {
-    const first = list[0];
-    if (!first) return "";
-    const rate = first.buffer.sampleRate;
-    const channels = Math.max(...list.map((t) => t.buffer.numberOfChannels));
-    return `${list.length > 1 ? `${list.length} tracks` : first.name} · ${(timelineEnd(list) / rate).toFixed(1)}s · ${rate} Hz · ${channels}ch`;
-  };
-
-  /** Apply an edit as one undoable step. */
-  const commit = (edit: (tracks: Track[]) => Track[]) => {
-    const { past, tracks: current } = timelineRef.current;
-    const next = edit(current);
-    if (next === current) return;
-    invalidateDownstream();
-    setTimeline({ past: [...past, current].slice(-100), tracks: next, future: [] });
-    setNoiseStatus(describe(next));
-    if (!next.some((t) => t.id === activeTrack)) setActiveTrack(next[0]?.id ?? null);
-  };
-
-  const undo = () => {
-    const previous = timeline.past.at(-1);
-    if (!previous) return;
-    invalidateDownstream();
-    setTimeline({
-      past: timeline.past.slice(0, -1),
-      tracks: previous,
-      future: [tracks, ...timeline.future],
-    });
-    setNoiseStatus(describe(previous));
-  };
-
-  const redo = () => {
-    const next = timeline.future[0];
-    if (!next) return;
-    invalidateDownstream();
-    setTimeline({
-      past: [...timeline.past, tracks],
-      tracks: next,
-      future: timeline.future.slice(1),
-    });
-    setNoiseStatus(describe(next));
-  };
-
-  /** Trim (yellow bars) or slide one track along the timeline. */
-  const placeTrack = (id: number, placement: Placement) =>
-    commit((list) => list.map((t) => (t.id === id ? { ...t, ...placement } : t)));
-
-  const duplicateTrack = () =>
-    commit((list) => {
-      const index = list.findIndex((t) => t.id === activeTrack);
-      const source = list[index];
-      if (!source) return list;
-      // The copy starts where the timeline currently ends, ready to be trimmed or moved.
-      const copy = {
-        ...source,
-        id: nextTrackId.current++,
-        name: `${source.name} (copy)`,
-        at: timelineEnd(list),
-      };
-      setActiveTrack(copy.id);
-      return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
-    });
-
-  // Keyboard: undo / redo.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target;
-      const typing =
-        el instanceof HTMLTextAreaElement ||
-        (el instanceof HTMLInputElement && el.type !== "range");
-      if (typing) return;
-      const key = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      } else if ((e.ctrlKey || e.metaKey) && key === "y") {
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
-
-  /* ── Load file — decode only, NO auto-cleaning ── */
-  // "replace" starts a new project; "append" adds the file as another track to join.
-  const loadFile = async (file: File, mode: "replace" | "append" = "replace") => {
-    const load = ++loadRef.current;
-    const setStatus = mode === "replace" ? setNoiseStatus : setEditStatus;
-    setStatus("Decoding audio…");
-    try {
-      const buf = await player.context().decodeAudioData(await file.arrayBuffer());
-      if (load !== loadRef.current) return;
-      const track: Track = {
-        id: nextTrackId.current++,
-        name: file.name,
-        buffer: buf,
-        start: 0,
-        end: buf.length,
-        at: 0,
-      };
-      setActiveTrack(track.id);
-      if (mode === "append" && timelineRef.current.tracks.length > 0) {
-        // A joined file starts where the timeline currently ends.
-        commit((list) => [...list, { ...track, at: timelineEnd(list) }]);
-      } else {
-        invalidateDownstream();
-        setTimeline({ past: [], tracks: [track], future: [] });
-        setFileName(file.name);
-        setNoiseStatus(describe([track]));
-      }
-    } catch {
-      if (load === loadRef.current) {
-        setStatus("Could not decode that file. Try a standard .mp3 or .wav.");
-      }
+    setHearCleaned(cleaned !== null);
+    const now = latest.current;
+    if (cleaned && now.transport.playing && now.transport.track === "original") {
+      now.toggle("cleaned");
     }
+  }, [cleaned]);
+
+  const monitor: TrackId =
+    stage === "arrange"
+      ? "edit"
+      : stage === "clean"
+        ? hearCleaned && s.cleaned
+          ? "cleaned"
+          : "original"
+        : hearLive
+          ? "augmented"
+          : s.selectedSource;
+
+  const monitorBuffer =
+    monitor === "edit"
+      ? s.mix
+      : monitor === "original"
+        ? s.original
+        : monitor === "cleaned"
+          ? s.cleaned
+          : (s.liveAudio?.main ?? null);
+
+  const playing = s.transport.playing && s.transport.track === monitor;
+
+  /** Switch what is heard; if something is playing it carries on from the same moment. */
+  const listenTo = (track: TrackId) => {
+    if (s.transport.playing && s.transport.track !== track) s.toggle(track);
   };
 
-  const dropFile = (e: React.DragEvent) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f) void loadFile(f);
+  const goTo = (next: Stage) => {
+    if (next === stage) return;
+    if (s.transport.playing) s.pause();
+    // Leaving the timeline hands its result to the later stages.
+    if (stage === "arrange" && !s.sent) s.sendToPipeline();
+    setStage(next);
+    window.scrollTo({ top: 0 });
   };
 
-  /* ── Remove noise (Section 1) ── */
-  const removeNoise = async () => {
-    if (!original) return;
-    noiseJob.current?.abort();
-    const job = (noiseJob.current = new AbortController());
-    setNoiseBusy(true);
-    setNoiseStatus("Removing noise… 0%");
-    try {
-      const result = await renderCleaned(original, settings, {
-        signal: job.signal,
-        onProgress: (f) => setNoiseStatus(`Removing noise… ${percent(f)}`),
-      });
-      setCleaned(result);
-      setNoiseStatus("Noise removed successfully.");
-    } catch (err) {
-      if (!isAbort(err)) setNoiseStatus("Noise removal failed: " + message(err));
-    } finally {
-      if (noiseJob.current === job) {
-        noiseJob.current = null;
-        setNoiseBusy(false);
-      }
-    }
+  const openFile = (file: File | undefined, mode: "replace" | "append") => {
+    if (!file) return;
+    if (mode === "replace") setStage("arrange");
+    void s.loadFile(file, mode);
   };
-
-  /* ── Render augmentation (Section 2) — needed for the waveform and export only ── */
-  const renderAugmentation = async (): Promise<AudioBuffer | null> => {
-    if (!augSource) return null;
-    if (augFresh && augmented) return augmented.buffer;
-    augJob.current?.abort();
-    const job = (augJob.current = new AbortController());
-    const source = augSource;
-    const used = settings;
-    setAugBusy(true);
-    setAugStatus("Preparing augmentation…");
-    try {
-      const audio = await pitchCache.prepare(source, used, {
-        signal: job.signal,
-        onProgress: (f) => setAugStatus(`Shifting pitch… ${percent(f)}`),
-      });
-      setAugStatus("Applying effects…");
-      const buffer = await renderAugmented(audio, used);
-      if (job.signal.aborted) return null;
-      setAugmented({ buffer, source, key: augmentationKey(used) });
-      return buffer;
-    } finally {
-      if (augJob.current === job) {
-        augJob.current = null;
-        setAugBusy(false);
-      }
-    }
-  };
-
-  const applyAugmentation = async () => {
-    try {
-      if (await renderAugmentation()) setAugStatus("Augmentation applied. Download it below.");
-    } catch (err) {
-      if (!isAbort(err)) setAugStatus("Augmentation failed: " + message(err));
-    }
-  };
-
-  /* ── Download helper ── */
-  const download = async (kind: "edited" | "cleaned" | "augmented") => {
-    const setStatus =
-      kind === "edited" ? setEditStatus : kind === "cleaned" ? setNoiseStatus : setAugStatus;
-    const label = { edited: "Combined", cleaned: "Cleaned", augmented: "Augmented" }[kind];
-    setExporting(kind);
-    try {
-      const buffer =
-        kind === "edited" ? original : kind === "cleaned" ? cleaned : await renderAugmentation();
-      if (!buffer) return;
-      setStatus("Encoding MP3… 0%");
-      const blob = await encodeMp3(buffer, {
-        onProgress: (f) => setStatus(`Encoding MP3… ${percent(f)}`),
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName?.replace(/\.[^.]+$/, "") ?? "audio"}-${kind}.mp3`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setStatus(`${label} MP3 download started.`);
-    } catch (err) {
-      if (!isAbort(err)) setStatus(`Download failed: ${message(err)}`);
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  /* ══════════════════════════════════════════════════════════════════ */
-  /*                              RENDER                               */
-  /* ══════════════════════════════════════════════════════════════════ */
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-8">
-      {/* ── Header ── */}
-      <header className="mb-16 flex flex-col items-center justify-between gap-6 sm:flex-row sm:gap-0">
-        {/* Left Side: Logo & Name */}
-        <div className="flex cursor-pointer select-none items-center gap-3">
-          <img
-            src="./audio_augment_logo.webp"
-            alt="Audio Augment logo"
-            className="h-12 w-12 object-contain"
-          />
-          <h1 className="text-2xl font-bold tracking-tight text-accent">Audio Augment</h1>
-        </div>
+    <div
+      className="flex min-h-dvh flex-col"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        // The first file starts the project; later drops on the timeline add to it.
+        if (s.tracks.length === 0) openFile(file, "replace");
+        else if (stage === "arrange") openFile(file, "append");
+      }}
+    >
+      <Header />
 
-        {/* Right Side: Action Buttons */}
-        <div className="flex items-center gap-4">
-          {/* Home Button */}
-          <a
-            href="https://audio-augment.vercel.app/"
-            className="flex h-9 items-center justify-center gap-2 text-foreground"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-48 pt-5 sm:px-6 sm:pb-36">
+        <StageNav stage={stage} s={s} onStage={goTo} />
+        <div key={stage} className="rise-in mt-6">
+          {stage === "arrange" && (
+            <Arrange
+              s={s}
+              onAdd={(f) => openFile(f, "append")}
+              onNew={(f) => openFile(f, "replace")}
+            />
+          )}
+          {stage === "clean" && <Clean s={s} />}
+          {stage === "enhance" && <Enhance s={s} />}
+        </div>
+      </main>
+
+      <Dock
+        s={s}
+        stage={stage}
+        monitor={monitor}
+        buffer={monitorBuffer}
+        playing={playing}
+        hearCleaned={hearCleaned}
+        hearLive={hearLive}
+        onHearCleaned={(on) => {
+          setHearCleaned(on);
+          listenTo(on ? "cleaned" : "original");
+        }}
+        onHearLive={(on) => {
+          setHearLive(on);
+          listenTo(on ? "augmented" : s.selectedSource);
+        }}
+        onStage={goTo}
+      />
+    </div>
+  );
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+function Header() {
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <a
+          href="https://audio-augment.vercel.app/"
+          className="flex items-center gap-2.5"
+          aria-label="Audio Augment home"
+        >
+          {/* Mark: three level bars inside a ring */}
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+            <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" strokeWidth="1.25" />
+            <path
+              d="M8.5 11v4M13 7.5v11M17.5 10v6"
+              stroke="var(--primary)"
+              strokeWidth="2"
               strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
+            />
+          </svg>
+          <span className="text-[17px] font-semibold tracking-tight">
+            Audio <span className="serif-accent text-[20px]">Augment</span>
+          </span>
+        </a>
+
+        <div className="ml-auto flex items-center gap-2">
+          <a
+            href="https://github.com/Creatorsai-Lab/audio-augment"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Audio Augment on GitHub"
+            title="Source code on GitHub"
+            className="hidden h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
+          >
+            <GitHubMark />
           </a>
-
-          {/* Creators AI Lab Button - Glowing Animated Background */}
-          <div className="group relative">
-            {/* Animated Glow Layer */}
-            <div className="absolute -inset-0.5 animate-pulse rounded-md transition duration-300 group-hover:opacity-100"></div>
-            <a
-              href="https://creatorsai-lab.github.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative flex h-9 items-center justify-center rounded-md bg-[linear-gradient(90deg,#eab308,#3b82f6,#8b5cf6,#22c55e)] bg-[length:300%_300%] px-4 py-2 text-sm font-bold tracking-wide text-white transition-opacity hover:opacity-90"
-              style={{
-                animation: "gradientMove 6s ease infinite",
-              }}
-            >
-              <style>{`
-    @keyframes gradientMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-  `}</style>
-              Creators AI Lab
-            </a>
-          </div>
-          {/* GitHub Star Button Widget */}
-          <div className="flex h-8 items-center font-normal justify-center pt-1">
-            <iframe
-              src="https://ghbtns.com/github-btn.html?user=Creatorsai-Lab&repo=audio-augment&type=star&count=true&size=large"
-              width="120"
-              height="30"
-              title="GitHub"
-            ></iframe>
-          </div>
+          {/* The lab is the page's one call to action: the only filled-accent
+              element in the header, with a live dot to draw the eye. */}
+          <a
+            href="https://creatorsai-lab.github.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex h-9 items-center gap-2 rounded-full border border-primary/50 bg-primary/10 pl-3 pr-3 text-[13px] font-semibold text-primary transition hover:border-primary hover:bg-primary hover:text-primary-foreground active:scale-[0.97]"
+          >
+            <span className="relative flex h-2 w-2" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70 group-hover:bg-primary-foreground" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary group-hover:bg-primary-foreground" />
+            </span>
+            Creators AI Lab
+            <span className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
+              <Icon name="external" size={14} />
+            </span>
+          </a>
         </div>
-      </header>
-
-      {/* File upload */}
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={dropFile}
-        className="mb-5 flex items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-4 select-none"
-      >
-        <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary transition-all duration-150 active:translate-y-1">
-          + Upload Audio
-          <input
-            type="file"
-            accept=".mp3,.wav,audio/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void loadFile(f);
-              e.target.value = ""; // allow re-picking the same file
-            }}
-          />
-        </label>
-        <span className="text-sm text-muted-foreground">
-          {noiseStatus || "OR drag and drop a file here (MP3 or WAV)."}
-        </span>
       </div>
+    </header>
+  );
+}
 
-      {/*  SECTION 0 — TRIM & JOIN                                   */}
-      <Editor
-        tracks={tracks}
-        activeId={activeTrack}
-        transport={transport}
-        status={editStatus}
-        busy={exporting !== null}
-        canUndo={timeline.past.length > 0}
-        canRedo={timeline.future.length > 0}
-        getPosition={getPosition}
-        onActivate={setActiveTrack}
-        onSeek={(t) => seek("edit", t)}
-        onChange={placeTrack}
-        onRemove={() => commit((list) => list.filter((t) => t.id !== activeTrack))}
-        onPreview={() => toggle("edit")}
-        onDuplicate={duplicateTrack}
-        onUndo={undo}
-        onRedo={redo}
-        onAdd={(file) => void loadFile(file, "append")}
-        onDownload={() => download("edited")}
+/* ── Upload zone (shown in the timeline until there is audio) ────────── */
+
+// A fixed, hand-shaped envelope: decorative, and identical on every visit.
+const BARS = Array.from({ length: 72 }, (_, i) => {
+  const t = i / 71;
+  const envelope = Math.sin(Math.PI * t) ** 0.7;
+  const detail = 0.55 + 0.45 * Math.sin(i * 1.7) * Math.sin(i * 0.37 + 1);
+  return Math.max(0.06, envelope * Math.abs(detail));
+});
+
+function UploadZone({
+  status,
+  onFile,
+}: {
+  status: string;
+  onFile: (file: File | undefined) => void;
+}) {
+  return (
+    <label className="group relative block cursor-pointer overflow-hidden rounded-xl border border-dashed border-border px-5 py-10 text-center transition hover:border-primary/70 sm:py-14">
+      <div className="grid-paper pointer-events-none absolute inset-0" />
+      <div className="relative">
+        <div className="flex h-14 items-end justify-center gap-[3px]" aria-hidden="true">
+          {BARS.map((h, i) => (
+            <span
+              key={i}
+              className={`w-[3px] shrink-0 rounded-full bg-primary/80 group-hover:bg-primary ${i % 2 ? "hidden sm:block" : ""}`}
+              style={{ height: `${h * 100}%`, opacity: 0.35 + h * 0.65 }}
+            />
+          ))}
+        </div>
+        <p className="mt-6 text-lg font-semibold tracking-tight sm:text-xl">
+          Start with a <span className="serif-accent text-[1.3em]">recording</span>
+        </p>
+        <p className="mx-auto mt-1.5 max-w-sm text-[13px] text-muted-foreground">
+          Everything runs on your device. Your audio is never uploaded.
+        </p>
+        <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
+          <Icon name="upload" /> Choose a recording
+        </span>
+        <p className="mt-3 text-[13px] text-muted-foreground" aria-live="polite">
+          {status || "or drop a file anywhere · MP3 or WAV"}
+        </p>
+      </div>
+      <input
+        type="file"
+        accept=".mp3,.wav,audio/*"
+        className="sr-only"
+        onChange={(e) => {
+          onFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+/* ── Stage navigation ───────────────────────────────────────────────── */
+
+function StageNav({
+  stage,
+  s,
+  onStage,
+}: {
+  stage: Stage;
+  s: StudioState;
+  onStage: (stage: Stage) => void;
+}) {
+  const done: Record<Stage, boolean> = {
+    arrange: s.sent && s.original !== null,
+    clean: s.cleaned !== null,
+    enhance: s.augFresh,
+  };
+  return (
+    <nav aria-label="Stages" className="grid grid-cols-3 gap-1.5 rounded-2xl bg-muted p-1.5">
+      {STAGES.map((st) => {
+        const on = st.id === stage;
+        return (
+          <button
+            key={st.id}
+            onClick={() => onStage(st.id)}
+            aria-current={on ? "step" : undefined}
+            className={`flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-2 transition sm:flex-row sm:justify-start sm:gap-2 sm:px-4 sm:py-2.5 ${
+              on ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span className={`font-mono text-[10px] sm:text-[11px] ${on ? "text-primary" : ""}`}>
+              {st.number}
+            </span>
+            <span className="text-center text-[12px] font-medium leading-tight sm:text-sm">
+              {st.title}
+            </span>
+            {done[st.id] && (
+              <span className="ml-auto hidden text-done sm:block" title="Done">
+                <Icon name="check" size={15} />
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function StageHead({
+  stage,
+  status,
+  children,
+}: {
+  stage: Stage;
+  status?: string;
+  children?: ReactNode;
+}) {
+  const st = STAGES.find((x) => x.id === stage)!;
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0">
+        <h2 className="stage-title">{st.title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{st.blurb}</p>
+      </div>
+      {children}
+      {status && (
+        <p className="w-full font-mono text-xs text-muted-foreground" aria-live="polite">
+          {status}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── 01 Arrange ─────────────────────────────────────────────────────── */
+
+function Tool(p: {
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <button
+      onClick={p.onClick}
+      disabled={p.disabled}
+      aria-label={p.label}
+      aria-pressed={p.active}
+      title={p.label}
+      className={`inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-xl px-2.5 text-[13px] transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35 ${
+        p.active ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+      }`}
+    >
+      <Icon name={p.icon} />
+      <span className="hidden md:inline">{p.label}</span>
+    </button>
+  );
+}
+
+function Arrange({
+  s,
+  onAdd,
+  onNew,
+}: {
+  s: StudioState;
+  onAdd: (file: File | undefined) => void;
+  onNew: (file: File | undefined) => void;
+}) {
+  const [speedOpen, setSpeedOpen] = useState(false);
+  // The slider moves freely; the stretch itself runs when it is released.
+  const [draftSpeed, setDraftSpeed] = useState<number | null>(null);
+  const addRef = useRef<HTMLInputElement>(null);
+  const newRef = useRef<HTMLInputElement>(null);
+  const noTrack = s.activeTrack === null;
+  const speed = draftSpeed ?? s.activeSpeed;
+
+  const applySpeed = (value: number) => {
+    setDraftSpeed(null);
+    if (value !== s.activeSpeed) void s.changeSpeed(value);
+  };
+
+  return (
+    <section>
+      <StageHead stage="arrange" status={s.editStatus}>
+        <button className={button.quiet} onClick={() => newRef.current?.click()}>
+          <Icon name="refresh" size={16} /> New recording
+        </button>
+      </StageHead>
+      <input
+        ref={newRef}
+        type="file"
+        accept=".mp3,.wav,audio/*"
+        className="sr-only"
+        onChange={(e) => {
+          onNew(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={addRef}
+        type="file"
+        accept=".mp3,.wav,audio/*"
+        className="sr-only"
+        onChange={(e) => {
+          onAdd(e.target.files?.[0]);
+          e.target.value = "";
+        }}
       />
 
-      {/*  SECTION 1 — NOISE & BACKGROUND REMOVAL                    */}
-      <section
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={dropFile}
-        className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]"
-      >
-        {/* Noise settings */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-panel)]">
-          <Knob
-            label="Noise reduction"
-            value={settings.denoise}
-            min={0}
-            max={1}
-            onChange={(v) => set("denoise", v)}
+      <div className="panel overflow-hidden">
+        <div className="flex items-center gap-0.5 border-b border-border p-1.5">
+          <Tool icon="plus" label="Add audio" onClick={() => addRef.current?.click()} />
+          <span className="mx-1 h-5 w-px bg-border" />
+          <Tool icon="copy" label="Duplicate" onClick={s.duplicateTrack} disabled={noTrack} />
+          <Tool
+            icon="speed"
+            label={s.activeSpeed === 1 ? "Speed" : `Speed ${s.activeSpeed}×`}
+            onClick={() => {
+              setDraftSpeed(null);
+              setSpeedOpen(!speedOpen);
+            }}
+            disabled={noTrack}
+            active={speedOpen && !noTrack}
           />
-          <Knob
-            label="Hissing reduction"
-            value={settings.hiss}
-            min={0}
-            max={1}
-            onChange={(v) => set("hiss", v)}
-          />
-          <Knob
-            label="Breath reduction"
-            value={settings.breath}
-            min={0}
-            max={1}
-            onChange={(v) => set("breath", v)}
-          />
-          <Knob
-            label="Sibilance reduction"
-            value={settings.deEss}
-            min={0}
-            max={1}
-            onChange={(v) => set("deEss", v)}
-          />
+          <Tool icon="trash" label="Remove" onClick={s.removeTrack} disabled={noTrack} />
+          <span className="ml-auto" />
+          <Tool icon="undo" label="Undo" onClick={s.undo} disabled={!s.canUndo} />
+          <Tool icon="redo" label="Redo" onClick={s.redo} disabled={!s.canRedo} />
         </div>
 
-        {/* Waveforms */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <div>
-            <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
-              Original Audio Preview
-            </p>
-            <Waveform
-              buffer={original}
-              active={transport.track === "original"}
-              getPosition={getPosition}
-              onSeek={(t) => seek("original", t)}
-            />
+        {speedOpen && !noTrack && (
+          <div className="flex items-end gap-3 border-b border-border px-4 py-3">
+            <div className="max-w-sm flex-1">
+              <Dial
+                label="Speed of the selected clip · pitch stays the same"
+                value={speed}
+                min={0.5}
+                max={2}
+                step={0.05}
+                unit="×"
+                onChange={setDraftSpeed}
+                onCommit={() => draftSpeed !== null && applySpeed(draftSpeed)}
+              />
+            </div>
             <button
-              disabled={!original}
-              onClick={() => toggle("original")}
-              className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-            >
-              {playLabel("original", "▶ Play original")}
-            </button>
-            <button
-              disabled={!original || noiseBusy}
-              onClick={removeNoise}
-              className="m-3 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
-            >
-              {noiseBusy ? "Working…" : "Remove Noise"}
-            </button>
-          </div>
-          <div>
-            <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
-              Cleaned Audio Preview
-            </p>
-            <Waveform
-              buffer={cleaned}
-              active={transport.track === "cleaned"}
-              getPosition={getPosition}
-              onSeek={(t) => seek("cleaned", t)}
-            />
-            <button
-              disabled={!cleaned}
-              onClick={() => toggle("cleaned")}
-              className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-            >
-              {playLabel("cleaned", "▶ Play cleaned")}
-            </button>
-            <button
-              disabled={!cleaned || exporting !== null}
-              onClick={() => download("cleaned")}
-              className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-40 transition-all duration-150 active:translate-y-1"
-            >
-              {exporting === "cleaned" ? "Exporting…" : "⬇ Download cleaned audio"}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/*  SECTION 2 — AUDIO AUGMENTATION                             */}
-      <section className="mt-8 rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
-        {/* Source picker */}
-        <div className="flex flex-wrap items-center gap-4 border-b pb-4 align-center items-center justify-center">
-          <span className="text-sm text-muted-foreground">Choose Source to Augment:</span>
-          <button
-            disabled={!original}
-            onClick={() => setSelectedSource("original")}
-            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "original" ? "cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary" : "border-border"}`}
-          >
-            Original audio
-          </button>
-          <button
-            disabled={!cleaned}
-            onClick={() => setSelectedSource("cleaned")}
-            className={`rounded-md border px-3 py-2 text-sm disabled:opacity-40 ${selectedSource === "cleaned" ? "cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary" : "border-border"}`}
-          >
-            Cleaned audio
-          </button>
-          {augStatus && <span className="text-sm text-muted-foreground">{augStatus}</span>}
-        </div>
-
-        {/* Augment Audio Preview */}
-
-        <div className="mt-5">
-          <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
-            Augmented Audio Preview
-          </p>
-          <Waveform
-            buffer={augmented?.buffer ?? augSource}
-            dimmed={!augFresh}
-            active={transport.track === "augmented"}
-            getPosition={getPosition}
-            onSeek={(t) => seek("augmented", t)}
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {augFresh
-              ? "Waveform shows the rendered result."
-              : "Play to hear your settings live as you turn the controls. The waveform updates when you apply or download."}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            disabled={!augSource || augBusy}
-            onClick={applyAugmentation}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
-          >
-            {augBusy ? "Working…" : "Apply Augmentation"}
-          </button>
-          <button
-            disabled={!liveAudio}
-            onClick={() => toggle("augmented")}
-            className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
-          >
-            {playLabel("augmented", "▶ Play augmented (live)")}
-          </button>
-          <button
-            disabled={!augSource || augBusy || exporting !== null}
-            onClick={() => download("augmented")}
-            className="rounded-md border cursor-pointer border-accent bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
-          >
-            {exporting === "augmented" ? "Exporting…" : "⬇ Download augmented audio"}
-          </button>
-        </div>
-
-        {/* Presets and Augmentation panels */}
-        <div className="mt-5 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
-          {/* Preset Buttons */}
-          <div className="flex w-full flex-col gap-3 px-2 md:w-[calc(20%-0.67rem)]">
-            <p className="mb-4 text-[13px] font-semibold uppercase tracking-[0.2em] text-accent">
-              Presets
-            </p>
-            {Object.keys(PRESETS).map((name) => (
-              <button
-                key={name}
-                onClick={() => setSettings((s) => ({ ...s, ...PRESETS[name] }))}
-                className="w-full cursor-pointer rounded-md border border-border bg-secondary px-3 py-2 text-center text-xs uppercase tracking-widest text-secondary-foreground transition-all duration-150 active:translate-y-1"
-              >
-                {name}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                const augKeys = [
-                  ...EQ_BANDS.map((b) => b.key),
-                  "pitch",
-                  "harmonizer",
-                  "harmonizerInterval",
-                  "chorus",
-                  "compressor",
-                  "saturation",
-                  "output",
-                  "reverb",
-                  "reverbSize",
-                  "delay",
-                  "delayTime",
-                  "delayFeedback",
-                ] as const;
-                setSettings((s) => {
-                  const next = { ...s };
-                  for (const k of augKeys) {
-                    (next as Record<string, number>)[k] = defaultSettings[k];
-                  }
-                  return next;
-                });
-              }}
-              className="w-full cursor-pointer rounded-md border border-border px-3 py-1.5 text-center text-xs uppercase tracking-widest text-muted-foreground transition-all duration-150 active:translate-y-1"
+              className={`${button.quiet} h-9`}
+              disabled={speed === 1}
+              onClick={() => applySpeed(1)}
             >
               Reset
             </button>
           </div>
+        )}
 
-          <Panel
-            title="10-Band Equalizer"
-            className="flex w-full flex-col md:w-[calc(45%-0.67rem)]"
+        <div className="p-3 sm:p-4">
+          {s.tracks.length === 0 ? (
+            <UploadZone status={s.noiseStatus} onFile={onNew} />
+          ) : (
+            <Timeline
+              tracks={s.tracks}
+              activeId={s.activeTrack}
+              transport={s.transport}
+              getPosition={s.getPosition}
+              onActivate={s.setActiveTrack}
+              onSeek={(t) => s.seek("edit", t)}
+              onChange={s.placeTrack}
+            />
+          )}
+        </div>
+      </div>
+
+      <ul className="mt-4 grid gap-x-6 gap-y-1 text-[13px] text-muted-foreground sm:grid-cols-3">
+        <li>
+          <span className="font-mono text-trim">▌</span> Drag a clip&rsquo;s edge to trim
+        </li>
+        <li>Drag a clip to move it · edges snap together</li>
+        <li>Tap the time scale to move the playhead</li>
+      </ul>
+    </section>
+  );
+}
+
+/* ── 02 Clean ───────────────────────────────────────────────────────── */
+
+function WaveBlock(p: { label: string; note?: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <span className="label-caps">{p.label}</span>
+        {p.note && <span className="text-xs text-muted-foreground">{p.note}</span>}
+      </div>
+      {p.children}
+    </div>
+  );
+}
+
+function Clean({ s }: { s: StudioState }) {
+  // The same line also carries the file description; only show it while it reports work.
+  const working = / Hz · /.test(s.noiseStatus) ? "" : s.noiseStatus;
+  const progress = s.noiseBusy ? percentIn(s.noiseStatus) : null;
+
+  return (
+    <section>
+      <StageHead stage="clean" status={working} />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <div className="panel p-5">
+          <div className="grid gap-4">
+            <Dial
+              label="Noise"
+              value={s.settings.denoise}
+              min={0}
+              max={1}
+              onChange={(v) => s.set("denoise", v)}
+            />
+            <Dial
+              label="Hiss"
+              value={s.settings.hiss}
+              min={0}
+              max={1}
+              onChange={(v) => s.set("hiss", v)}
+            />
+            <Dial
+              label="Breaths"
+              value={s.settings.breath}
+              min={0}
+              max={1}
+              onChange={(v) => s.set("breath", v)}
+            />
+            <Dial
+              label="Sibilance"
+              value={s.settings.deEss}
+              min={0}
+              max={1}
+              onChange={(v) => s.set("deEss", v)}
+            />
+          </div>
+          <button
+            className={`${button.primary} relative mt-5 w-full overflow-hidden`}
+            disabled={!s.original || s.noiseBusy}
+            onClick={() => void s.removeNoise()}
           >
-            <div className="grid h-full flex-1 grid-cols-5 gap-x-3 gap-y-3 sm:grid-cols-10">
-              {EQ_BANDS.map((band) => (
-                <div
-                  key={band.key}
-                  className="flex h-full flex-col items-center justify-between gap-1"
-                >
-                  <span className="font-mono text-[10px] text-accent">
-                    {settings[band.key].toFixed(0)} dB
-                  </span>
-                  <input
-                    type="range"
-                    min={-12}
-                    max={12}
-                    step={1}
-                    value={settings[band.key]}
-                    onChange={(e) => set(band.key, parseFloat(e.target.value))}
-                    className="fader w-5 flex-1 min-h-[120px]"
-                    style={{
-                      writingMode: "vertical-lr" as const,
-                      direction: "rtl" as const,
-                    }}
-                    title={`${band.label}`}
-                  />
-                  <div className="flex flex-col items-center">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {band.label}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
+            {progress !== null && (
+              <span
+                className="absolute inset-y-0 left-0 bg-black/15 transition-[width]"
+                style={{ width: `${progress}%` }}
+              />
+            )}
+            <span className="relative">
+              {s.noiseBusy
+                ? `Removing noise… ${progress ?? 0}%`
+                : s.cleaned
+                  ? "Remove noise again"
+                  : "Remove noise"}
+            </span>
+          </button>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Higher values remove more, but can thin the voice. Start in the middle and compare.
+          </p>
+        </div>
 
-          <Panel title="Voice" className="w-full md:w-[calc(33%-0.67rem)] md:flex-grow">
-            <Knob
+        <div className="panel grid content-start gap-5 p-5">
+          <WaveBlock label="Before">
+            <Waveform
+              buffer={s.original}
+              active={s.transport.track === "original"}
+              getPosition={s.getPosition}
+              onSeek={(t) => s.seek("original", t)}
+            />
+          </WaveBlock>
+          <WaveBlock
+            label="After"
+            {...(s.cleaned ? {} : { note: "Run Remove Noise to hear the difference" })}
+          >
+            <Waveform
+              buffer={s.cleaned}
+              active={s.transport.track === "cleaned"}
+              getPosition={s.getPosition}
+              onSeek={(t) => s.seek("cleaned", t)}
+            />
+          </WaveBlock>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── 03 Enhance ─────────────────────────────────────────────────────── */
+
+type Module = "tone" | "voice" | "dynamics" | "space";
+
+function ModuleCard(p: { id: Module; open: Module; title: string; children: ReactNode }) {
+  // Small screens show one module at a time; large screens show all four.
+  return (
+    <div className={`panel p-5 ${p.open === p.id ? "block" : "hidden"} lg:block`}>
+      <p className="label-caps mb-4 hidden lg:block">{p.title}</p>
+      {p.children}
+    </div>
+  );
+}
+
+function Enhance({ s }: { s: StudioState }) {
+  const [module, setModule] = useState<Module>("tone");
+  const v = s.settings;
+
+  return (
+    <section>
+      <StageHead stage="enhance" status={s.augStatus}>
+        <Segmented
+          label="Audio to augment"
+          value={s.selectedSource}
+          onChange={s.setSelectedSource}
+          options={[
+            { id: "original", label: "Original", disabled: !s.original },
+            { id: "cleaned", label: "Cleaned", disabled: !s.cleaned },
+          ]}
+        />
+      </StageHead>
+
+      <div className="panel p-5">
+        <WaveBlock
+          label={s.augFresh ? "Rendered result" : "Preview"}
+          note={s.augFresh ? "" : "Press play: controls change the sound as you move them"}
+        >
+          <Waveform
+            buffer={s.augmented?.buffer ?? s.augSource}
+            dimmed={!s.augFresh}
+            active={s.transport.track === "augmented"}
+            getPosition={s.getPosition}
+            onSeek={(t) => s.seek("augmented", t)}
+          />
+        </WaveBlock>
+
+        <div className="no-scrollbar -mx-1 mt-4 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+          <span className="label-caps shrink-0 pr-1">Presets</span>
+          {Object.keys(PRESETS).map((name) => (
+            <button
+              key={name}
+              onClick={() => s.applyPreset(name)}
+              className="h-9 shrink-0 rounded-full border border-border px-4 text-[13px] transition hover:border-primary hover:text-primary active:scale-[0.97]"
+            >
+              {name}
+            </button>
+          ))}
+          <button
+            onClick={s.resetAugmentation}
+            className="h-9 shrink-0 rounded-full px-3 text-[13px] text-muted-foreground transition hover:text-foreground"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <Segmented
+        label="Controls"
+        className="mt-5 flex w-full lg:hidden"
+        value={module}
+        onChange={setModule}
+        options={[
+          { id: "tone", label: "Tone" },
+          { id: "voice", label: "Voice" },
+          { id: "dynamics", label: "Dynamics" },
+          { id: "space", label: "Space" },
+        ]}
+      />
+
+      <div className="mt-3 grid gap-5 lg:mt-5 lg:grid-cols-2">
+        <ModuleCard id="tone" open={module} title="Tone · 10-band equaliser">
+          <div className="grid grid-cols-10 gap-0.5 sm:gap-2">
+            {EQ_BANDS.map((band) => (
+              <EqFader
+                key={band.key}
+                label={band.freq >= 1000 ? `${band.freq / 1000}k` : String(band.freq)}
+                title={band.label.split(" : ")[1] ?? band.label}
+                value={v[band.key]}
+                onChange={(value) => s.set(band.key, value)}
+              />
+            ))}
+          </div>
+        </ModuleCard>
+
+        <ModuleCard id="voice" open={module} title="Voice">
+          <div className="grid gap-4">
+            <Dial
               label="Pitch"
-              value={settings.pitch}
+              value={v.pitch}
               min={-12}
               max={12}
               step={0.2}
               unit=" st"
-              onChange={(v) => set("pitch", v)}
+              onChange={(x) => s.set("pitch", x)}
             />
-            <Knob
-              label="Harmonizer mix"
-              value={settings.harmonizer}
+            <Dial
+              label="Harmony"
+              value={v.harmonizer}
               min={0}
               max={1}
-              onChange={(v) => set("harmonizer", v)}
+              onChange={(x) => s.set("harmonizer", x)}
             />
-            <Knob
+            <Dial
               label="Harmony interval"
-              value={settings.harmonizerInterval}
+              value={v.harmonizerInterval}
               min={-10}
               max={10}
               step={0.1}
               unit=" st"
-              onChange={(v) => set("harmonizerInterval", v)}
+              onChange={(x) => s.set("harmonizerInterval", x)}
             />
-            <Knob
+            <Dial
               label="Chorus"
-              value={settings.chorus}
+              value={v.chorus}
               min={0}
               max={1}
-              onChange={(v) => set("chorus", v)}
+              onChange={(x) => s.set("chorus", x)}
             />
-          </Panel>
+          </div>
+        </ModuleCard>
 
-          <Panel title="Reverb" className="w-full md:w-[calc(33.33%-0.67rem)]">
-            <Knob
-              label="Reverb"
-              value={settings.reverb}
-              min={0}
-              max={1}
-              onChange={(v) => set("reverb", v)}
-            />
-            <Knob
-              label="Reverb size"
-              value={settings.reverbSize}
-              min={0.1}
-              max={6}
-              step={0.1}
-              unit=" s"
-              onChange={(v) => set("reverbSize", v)}
-            />
-          </Panel>
-
-          <Panel title="Dynamics & colour" className="w-full md:w-[calc(33.33%-0.67rem)]">
-            <Knob
+        <ModuleCard id="dynamics" open={module} title="Dynamics">
+          <div className="grid gap-4">
+            <Dial
               label="Compressor"
-              value={settings.compressor}
+              value={v.compressor}
               min={0}
               max={1}
-              onChange={(v) => set("compressor", v)}
+              onChange={(x) => s.set("compressor", x)}
             />
-            <Knob
-              label="Saturation"
-              value={settings.saturation}
+            <Dial
+              label="Warmth"
+              value={v.saturation}
               min={0}
               max={1}
-              onChange={(v) => set("saturation", v)}
+              onChange={(x) => s.set("saturation", x)}
             />
-            <Knob
-              label="Output gain"
-              value={settings.output}
+            <Dial
+              label="Output"
+              value={v.output}
               min={-12}
               max={12}
               step={0.5}
               unit=" dB"
-              onChange={(v) => set("output", v)}
+              onChange={(x) => s.set("output", x)}
             />
-          </Panel>
+          </div>
+        </ModuleCard>
 
-          <Panel title="Echo / delay" className="w-full md:w-[calc(33.33%-0.67rem)]">
-            <Knob
-              label="Delay"
-              value={settings.delay}
+        <ModuleCard id="space" open={module} title="Space">
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-x-6">
+            <Dial
+              label="Reverb"
+              value={v.reverb}
               min={0}
               max={1}
-              onChange={(v) => set("delay", v)}
+              onChange={(x) => s.set("reverb", x)}
             />
-            <Knob
-              label="Delay Time"
-              value={settings.delayTime}
+            <Dial
+              label="Room size"
+              value={v.reverbSize}
+              min={0.1}
+              max={6}
+              step={0.1}
+              unit=" s"
+              onChange={(x) => s.set("reverbSize", x)}
+            />
+            <Dial
+              label="Echo"
+              value={v.delay}
+              min={0}
+              max={1}
+              onChange={(x) => s.set("delay", x)}
+            />
+            <Dial
+              label="Echo time"
+              value={v.delayTime}
               min={0.02}
               max={1.5}
-              onChange={(v) => set("delayTime", v)}
+              unit=" s"
+              onChange={(x) => s.set("delayTime", x)}
             />
-            <Knob
-              label="Delay Feedback"
-              value={settings.delayFeedback}
+            <Dial
+              label="Echo repeats"
+              value={v.delayFeedback}
               min={0}
-              step={0.1}
               max={1}
-              onChange={(v) => set("delayFeedback", v)}
+              step={0.1}
+              onChange={(x) => s.set("delayFeedback", x)}
             />
-          </Panel>
+          </div>
+        </ModuleCard>
+      </div>
+    </section>
+  );
+}
+
+/* ── Transport dock ─────────────────────────────────────────────────── */
+
+function Dock(p: {
+  s: StudioState;
+  stage: Stage;
+  monitor: TrackId;
+  buffer: AudioBuffer | null;
+  playing: boolean;
+  hearCleaned: boolean;
+  hearLive: boolean;
+  onHearCleaned: (on: boolean) => void;
+  onHearLive: (on: boolean) => void;
+  onStage: (stage: Stage) => void;
+}) {
+  const { s, stage, monitor, buffer } = p;
+  const timeRef = useRef<HTMLSpanElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const { getPosition } = s;
+  const active = s.transport.track === monitor;
+  const duration = buffer?.duration ?? 0;
+
+  // Readout and progress line are written straight to the DOM every frame.
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const pos = active ? Math.min(duration, getPosition()) : 0;
+      if (timeRef.current) timeRef.current.textContent = clock(pos);
+      if (barRef.current)
+        barRef.current.style.width = `${duration > 0 ? (pos / duration) * 100 : 0}%`;
+      if (active) frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [active, duration, getPosition]);
+
+  const exportKind = stage === "arrange" ? "edited" : stage === "clean" ? "cleaned" : "augmented";
+  const canExport =
+    s.exporting === null &&
+    (stage === "arrange"
+      ? s.mix !== null
+      : stage === "clean"
+        ? s.cleaned !== null
+        : s.augSource !== null && !s.augBusy);
+  const exportLabel = s.exporting !== null ? "Exporting…" : "Export MP3";
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur">
+      <div className="h-0.5 bg-transparent">
+        <div ref={barRef} className="h-full bg-primary" style={{ width: 0 }} />
+      </div>
+      <div
+        className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <button
+          onClick={() => s.toggle(monitor)}
+          disabled={!buffer}
+          aria-label={p.playing ? "Pause" : "Play"}
+          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition active:scale-95 disabled:opacity-30"
+        >
+          <Icon name={p.playing ? "pause" : "play"} size={22} />
+        </button>
+
+        <div className="min-w-[5.5rem] font-mono text-sm tabular-nums leading-tight">
+          <span ref={timeRef}>0:00.0</span>
+          <span className="block text-[11px] text-muted-foreground">of {clock(duration)}</span>
         </div>
-      </section>
-      <section className="mx-auto w-full space-y-12 py-8 text-foreground">
-        {/* Hero Description Card */}
-        <h3 className="mb-4 text-center text-2xl font-bold text-primary">
-          What is Audio Augment Studio ?
-        </h3>
-        <p className="text-center leading-relaxed text-muted-foreground">
-          A very simple and fast audio editing studio that works with great precision. It has been
-          designed and developed for content creators and artists to edit their audio at their
-          fingertips without any hassle.
-        </p>
 
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">How does it work?</h3>
-            <p className="text-sm text-muted-foreground">
-              Everything runs inside your browser using signal-processing algorithms. Upload an
-              audio file, press play, and hear each effect change live as you turn the controls.
-            </p>
-          </div>
+        {stage === "arrange" && <span className="label-caps hidden sm:block">Timeline mix</span>}
+        {stage === "clean" && (
+          <Segmented
+            label="Listen to"
+            value={p.hearCleaned && s.cleaned ? "after" : "before"}
+            onChange={(id) => p.onHearCleaned(id === "after")}
+            options={[
+              { id: "before", label: "Before" },
+              { id: "after", label: "After", disabled: !s.cleaned },
+            ]}
+          />
+        )}
+        {stage === "enhance" && (
+          <Segmented
+            label="Listen to"
+            value={p.hearLive ? "live" : "dry"}
+            onChange={(id) => p.onHearLive(id === "live")}
+            options={[
+              { id: "dry", label: "Dry" },
+              { id: "live", label: "Augmented" },
+            ]}
+          />
+        )}
 
-          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">Who is it for?</h3>
-            <p className="text-sm text-muted-foreground">
-              Musicians, podcasters, content creators, and absolutely anyone who wants to
-              dramatically improve the quality of their vocal recordings.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">Why use it?</h3>
-            <p className="text-sm text-muted-foreground">
-              It's fast, incredibly easy to use, and delivers professional results instantly. You
-              can safely experiment with settings to find your perfect signature sound.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border bg-background p-5 transition-colors hover:bg-muted/30">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">How to use it?</h3>
-            <p className="text-sm text-muted-foreground">
-              Upload a file, select your effects, adjust the dials to fine-tune your sound, and
-              simply hit download to grab your studio-ready track for your projects.
-            </p>
-          </div>
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          {stage === "enhance" ? (
+            <button
+              className={`${button.primary} flex-1 sm:flex-none`}
+              disabled={!canExport}
+              onClick={() => void s.download("augmented")}
+            >
+              <Icon name="download" /> {exportLabel}
+            </button>
+          ) : (
+            <>
+              <button
+                className={`${button.quiet} h-11`}
+                disabled={!canExport}
+                onClick={() => void s.download(exportKind)}
+                title={
+                  stage === "arrange"
+                    ? "Export the timeline as MP3"
+                    : "Export the cleaned audio as MP3"
+                }
+              >
+                <Icon name="download" /> <span>{exportLabel}</span>
+              </button>
+              <button
+                className={`${button.primary} flex-1 sm:flex-none`}
+                disabled={stage === "arrange" && s.mix === null}
+                onClick={() => p.onStage(stage === "arrange" ? "clean" : "enhance")}
+              >
+                Continue <Icon name="arrow" />
+              </button>
+            </>
+          )}
         </div>
-
-        {/* Dropdown FAQ Section */}
-        <h3 className="mb-8 text-center text-2xl font-bold text-primary">
-          Frequently Asked Questions
-        </h3>
-        <div className="space-y-4">
-          {/* FAQ 1 */}
-          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">What audio formats are supported?</h3>
-              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </span>
-            </summary>
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
-              <p>
-                We currently support MP3 and WAV files for upload. You can export your finished
-                tracks in high quality MP3.
-              </p>
-            </div>
-          </details>
-
-          {/* FAQ 2 */}
-          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">Is my audio stored on your servers?</h3>
-              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </span>
-            </summary>
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
-              <p>
-                No. Your audio never leaves your device. All processing happens locally in your
-                browser, nothing is uploaded to a server, and your files are gone from memory as
-                soon as you close the tab.
-              </p>
-            </div>
-          </details>
-
-          {/* FAQ 3 */}
-          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">Do I need a professional microphone?</h3>
-              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </span>
-            </summary>
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
-              <p>
-                Not at all. A good mic always helps, but the noise removal and enhancement tools are
-                designed to clean up and enrich audio recorded on ordinary headsets or phone mics.
-              </p>
-            </div>
-          </details>
-
-          {/* FAQ 4 */}
-          <details className="group rounded-lg border border-border bg-background [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex cursor-pointer items-center justify-between p-4 text-foreground transition-colors hover:bg-muted/30">
-              <h3 className="m-0 text-base font-medium">
-                Can I use Audio Augment Studio on mobile?
-              </h3>
-              <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform duration-200 group-open:rotate-180">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </span>
-            </summary>
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
-              <p>
-                Yes. The studio interface is fully responsive, so you can upload, process, and
-                download audio directly from your smartphone's web browser. Very long recordings
-                need more memory than some phones have, so a computer works best for those.
-              </p>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <p className="mt-6 text-md text-muted-foreground text-center font">
-        © All right reserved • Audio Augment Studio | Creators AI Lab • 2026
-      </p>
-    </main>
+      </div>
+    </div>
   );
 }

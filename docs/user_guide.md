@@ -1,283 +1,213 @@
 # Audio Augment — User Guide
 
-> **No account. No internet. No waiting.**
-> Drop a file, clean it, shape it, download it.
+> **No account. No upload. No waiting.**
+> Open a recording, trim it, clean it, shape it, export it.
 
 ---
 
-## Table of Contents
+## Contents
 
-1. [Getting Started](#1-getting-started)
-2. [Uploading Audio](#2-uploading-audio)
-3. [Stage 1 — Noise Removal](#3-stage-1--noise-removal)
-4. [Stage 2 — Audio Augmentation](#4-stage-2--audio-augmentation)
-   - [Presets](#presets)
-   - [Equalizer Panel](#equalizer-panel)
-   - [Voice Panel](#voice-panel)
-   - [Dynamics & Colour Panel](#dynamics--colour-panel)
-   - [Reverb Panel](#reverb-panel)
-   - [Echo / Delay Panel](#echo--delay-panel)
-5. [Playback & Waveforms](#5-playback--waveforms)
-6. [Downloading Your Audio](#6-downloading-your-audio)
-7. [Typical Workflows](#7-typical-workflows)
-8. [Tips & Best Practices](#8-tips--best-practices)
+1. [How the studio is laid out](#1-how-the-studio-is-laid-out)
+2. [Opening a recording](#2-opening-a-recording)
+3. [Stage 01 — Trim](#3-stage-01--trim)
+4. [Stage 02 — Remove Noise](#4-stage-02--remove-noise)
+5. [Stage 03 — Augment & Effects](#5-stage-03--augment--effects)
+6. [The transport bar](#6-the-transport-bar)
+7. [Exporting](#7-exporting)
+8. [Typical workflows](#8-typical-workflows)
+9. [Tips](#9-tips)
 
 ---
 
-## 1. Getting Started
+## 1. How the studio is laid out
 
-Audio Augment runs entirely in your browser or as a desktop app — everything happens locally on your machine. Nothing is uploaded to any server.
+Audio Augment runs entirely in your browser or as a desktop app. Everything is processed on your own device; your audio is never uploaded.
 
 **Supported formats:** `.mp3` · `.wav`
 
-**Web:** open the app URL in any modern browser.
-**Desktop:** launch *Audio Augment* from the Start Menu or desktop shortcut.
+The studio has three stages, shown as tabs at the top. Only one stage is on screen at a time:
+
+| Tab | What it is for |
+|---|---|
+| **01 Trim** | Trim, repeat, re-time and join clips on a timeline |
+| **02 Remove Noise** | Take out background noise, hiss, breaths and harsh S sounds |
+| **03 Augment & Effects** | Equaliser, voice, dynamics and space effects, heard live |
+
+A tab shows a tick once its stage is done. You can move between stages freely and skip any you don't need.
+
+A **transport bar** is docked at the bottom of every stage: play/pause, the current time, what you are listening to, and the stage's main action.
 
 ---
 
-## 2. Uploading Audio
+## 2. Opening a recording
 
-You have two ways to load a file:
+The studio opens on the **Trim** stage with an upload area in the timeline.
 
 | Method | How |
 |---|---|
-| **Upload button** | Click **+ Upload Audio** and pick a `.mp3` or `.wav` file from your device |
-| **Drag & drop** | Drag a file onto the upload box or the noise removal section and release |
+| **Choose** | Click **Choose a recording** and pick an `.mp3` or `.wav` |
+| **Drag & drop** | Drop a file anywhere on the page |
 
-Once loaded, the status bar shows the **filename**, **duration**, **sample rate** and **channel count** — confirming the file decoded successfully.
-
-> ℹ️ You can load a new file at any time. It replaces the current session and clears all previous results.
+**New recording** (top right of the Trim stage) starts over with a different file.
 
 ---
 
-## Trim & Join (before Stage 1)
+## 3. Stage 01 — Trim
 
-The **Trim & Join** card sits between the upload box and noise removal. It is a timeline: each audio file is a clip on its own lane under a shared time scale, and what you hear and export is every clip at its position on that scale. The result is what Stage 1 and Stage 2 work on.
+A timeline: each audio file is a clip on its own lane under a shared time scale (a label every 10 seconds). What you hear and export is every clip at its position on that scale. A timeline longer than the screen scrolls sideways.
 
 | Action | How |
 |---|---|
-| **Trim** | Drag the yellow bar at either end of a clip inward. The trimmed part disappears; drag the bar back out to restore it. The exact time is shown while dragging. |
-| **Move a clip** | Drag the clip left or right in its lane. Its edges snap to the start of the timeline and to the edges of other clips, so clips can be placed end to end without a gap. |
-| **Join files** | **+ Add audio** (or drop a file on the card). The new clip starts where the timeline currently ends. |
-| **Repeat a part** | Click a clip to highlight it, then **Duplicate** (⧉ in the bar on the right). The copy appears on a new lane after the end of the timeline; trim and move it as needed. |
-| **Remove a middle section** | Duplicate the clip, trim the first copy to the part before the section and the second to the part after it, then slide the second up against the first. |
-| **Remove a clip** | Click it to highlight it, then **✕** in the bar on the right. |
-| **Undo / Redo** | ↶ ↷ in the bar on the right, or `Ctrl+Z` / `Ctrl+Shift+Z`. |
-| **Preview** | **▶ Play all tracks** plays the timeline; one playhead moves across all lanes. Click the time scale or empty lane space to move the playhead. |
-| **Export** | **⬇ Download combined audio** saves the timeline as MP3 without cleaning or augmenting it. |
+| **Trim** | Drag the yellow bar at either end of a clip inward. Drag it back out to restore the audio. The exact time is shown while dragging. |
+| **Move a clip** | Drag the clip left or right in its lane. Its edges snap to the start of the timeline and to the edges of other clips, so clips can sit end to end without a gap. |
+| **Add audio** | **+ Add audio** in the toolbar, or drop a file. The new clip appears on its own lane starting at 0:00. |
+| **Duplicate** | Select a clip, then **Duplicate**. The copy appears on a new lane starting at 0:00; trim and move it as needed. |
+| **Change speed** | Select a clip, then **Speed** and drag the slider (0.5× to 2×). The clip gets shorter or longer; its pitch stays the same. |
+| **Remove a clip** | Select it, then **Remove**. |
+| **Undo / Redo** | The arrows at the right of the toolbar, or `Ctrl+Z` / `Ctrl+Shift+Z`. |
+| **Move the playhead** | Click or drag on the time scale, or click empty lane space. |
 
-Gaps between clips are silence in the result, and clips that overlap in time are mixed together. Any edit clears the cleaned and augmented results, because they no longer match the audio. **+ Upload Audio** at the top always starts over with a single new file.
+**To cut a section out of the middle:** duplicate the clip, trim the first copy to the part before the section and the second to the part after it, then slide the second up against the first.
+
+Gaps between clips are silence in the result, and clips that overlap in time are mixed together.
+
+Pressing **Continue** (or switching to another tab) passes the timeline's result on to the next stages. If you come back and change the timeline later, noise removal has to be run again.
 
 ---
 
-## 3. Stage 1 — Noise Removal
+## 4. Stage 02 — Remove Noise
 
-The first stage analyses and removes unwanted background noise from the raw audio. It runs entirely offline using spectral processing — no AI cloud service.
-
-### Controls
-
-| Knob | What it does | Default |
+| Slider | What it does | Default |
 |---|---|---|
-| **Noise reduction** | Reduces broadband background noise — fans, room hum, recording floor | 0.6 |
-| **Hissing reduction** | Attenuates high-frequency tape hiss and mic self-noise | 0.5 |
-| **Breath reduction** | Suppresses breath sounds and mouth noise between words | 0.35 |
-| **Sibilance reduction** | De-esses harsh `s` and `sh` sounds in speech. Applied when you click **Remove Noise** | 0.3 |
+| **Noise** | Removes steady background noise (fans, room tone, hum) | 0.60 |
+| **Hiss** | Removes high-frequency hiss | 0.50 |
+| **Breaths** | Turns down breaths and quiet gaps between words | 0.35 |
+| **Sibilance** | Softens harsh `s` and `sh` sounds | 0.30 |
 
-All knobs run from **0** (off) to **1** (maximum). Turn up only what you need — over-processing can make voices sound thin or unnatural.
+Set the sliders, then press **Remove noise**. A percentage shows progress. Two waveforms appear: **Before** and **After**.
 
-### Running noise removal
+Use the **Before / After** switch in the transport bar to compare. Switching while playing carries on from the same moment.
 
-1. Set the four knobs to your desired levels.
-2. Click **Remove Noise**.
-3. The status bar shows progress (`Analysing noise profile → Done`).
-4. The **Cleaned Audio** waveform appears on the right.
-
-You can click **▶ Play original** and **▶ Play cleaned** to compare before and after. If you're happy, click **⬇ Download cleaned audio** to export immediately — Stage 2 is optional.
+Higher values remove more, but can thin the voice. Change a slider and press **Remove noise again** to retry.
 
 ---
 
-## 4. Stage 2 — Audio Augmentation
+## 5. Stage 03 — Augment & Effects
 
-The second stage applies creative effects to your audio. You can augment the **original** (unprocessed) audio or the **cleaned** audio from Stage 1 — choose using the **Source** toggle at the top of the section.
+**Source.** At the top right, choose what to work on: **Original** or **Cleaned** (available after noise removal). This is not switched for you.
 
-Click **▶ Play augmented (live)** to hear the effects in real time: every knob and fader changes the sound as you move it, with no render step. Pitch and harmony take a moment to update after you release the knob.
-
-Click any waveform to seek. Switching between the original, cleaned and augmented players while playing continues from the same position, so you can A/B them.
-
-**Apply Augmentation** renders the result so its waveform is shown; **Download augmented audio** renders automatically if needed.
-
----
+**Live preview.** Press play in the transport bar and move any control: the sound changes as you move it. Pitch and harmony take a moment to update after you let go.
 
 ### Presets
 
-Presets apply a curated combination of settings across all panels as a starting point. You can fine-tune any knob after applying a preset.
+**Podcast**, **Educational**, **Gaming** and **Best** set a starting combination of controls. **Reset** returns every effect to its default. You can adjust anything after choosing a preset.
 
-| Preset | Character |
+### Tone — 10-band equaliser
+
+Ten faders from 31 Hz to 16 kHz, each ±12 dB. Drag a fader up to boost that band or down to cut it. Double-click a fader to return it to 0.
+
+| Bands | Affects |
 |---|---|
-| 🎙 **Podcast** | Light compression, a gentle low and high boost, and modest de-essing. Warm and clear voice for talk shows and interviews. |
-| 📻 **Radio** | Heavier compression and saturation with a scooped mid. Punchy, broadcast-ready sound. |
-| 🎬 **Cinematic** | Subtle reverb, a low shelf boost, slight pitch-down, and a touch of saturation. Atmospheric and dramatic. |
-| 🤖 **Robot** | Pitch shifted down, high harmonizer interval, strong resonance, and chorus. A classic robotic voice effect. |
+| 31 – 125 Hz | Rumble, bass, body |
+| 250 – 500 Hz | Warmth; too much sounds muddy or boxy |
+| 1 – 2 kHz | Presence and intelligibility |
+| 4 – 8 kHz | Clarity and bite; too much sounds harsh |
+| 16 kHz | Air |
 
-Click **Reset** to return all augmentation knobs to their default values without touching the noise removal settings.
+### Voice
 
----
-
-### Equalizer Panel
-
-Shapes the tonal balance of the audio using three frequency bands and a resonance control.
-
-| Knob | Frequency | Range | Effect |
-|---|---|---|---|
-| **Low shelf** | ≤ 200 Hz | −18 dB to +18 dB | Boost for warmth and body; cut to reduce muddiness |
-| **Mid** | 1200 Hz | −18 dB to +18 dB | Boost for presence; cut to reduce nasality or harshness |
-| **High shelf** | ≥ 5000 Hz | −18 dB to +18 dB | Boost for air and clarity; cut to soften sibilance |
-| **Resonance** | 900 Hz | −1 to +1 | Narrow peak or dip adding formant colour to a voice |
-
-> **Tip:** Start EQ changes small — ±3 dB is often enough. Large boosts amplify noise too.
-
----
-
-### Voice Panel
-
-Transforms the pitch and character of the voice.
-
-| Knob | Range | Effect |
+| Control | Range | Effect |
 |---|---|---|
-| **Pitch** | −12 to +12 semitones | Shifts the entire pitch up (positive) or down (negative) in semitone steps. +12 is an octave up, −12 is an octave down. |
-| **Harmonizer mix** | 0 – 1 | Blends in a pitch-shifted copy of the signal alongside the original, creating a harmony effect |
-| **Harmony interval** | −12 to +12 semitones | Sets the interval of the harmony voice (e.g. +7 for a perfect fifth above, +5 for a fourth) |
-| **Chorus** | 0 – 1 | Adds a slightly delayed and modulated copy of the signal for a wide, shimmering texture |
+| **Pitch** | −12 to +12 semitones | Raises or lowers the voice without changing its length |
+| **Harmony** | 0 – 1 | Blends in a second, pitch-shifted copy of the voice |
+| **Harmony interval** | −10 to +10 semitones | How far the harmony sits from the main voice |
+| **Chorus** | 0 – 1 | Adds a subtle doubled, shimmering quality |
 
----
+### Dynamics
 
-### Dynamics & Colour Panel
-
-Controls the energy and harmonic richness of the signal.
-
-| Knob | Range | Effect |
+| Control | Range | Effect |
 |---|---|---|
-| **Compressor** | 0 – 1 | Reduces the dynamic range — loud parts get quieter, quiet parts become more audible. Useful for consistent voice levels. |
-| **Saturation** | 0 – 1 | Adds gentle harmonic distortion inspired by analogue tape and tube equipment. Adds warmth and edge without clipping. |
-| **Output gain** | −12 to +12 dB | Sets the final output level of the augmented signal before rendering. Use this to match loudness between versions. |
+| **Compressor** | 0 – 1 | Evens out loud and quiet parts |
+| **Warmth** | 0 – 1 | Gentle saturation for a fuller tone |
+| **Output** | −12 to +12 dB | Final volume |
 
----
+### Space
 
-### Reverb Panel
-
-Adds a sense of acoustic space to the signal.
-
-| Knob | Range | Effect |
+| Control | Range | Effect |
 |---|---|---|
-| **Mix** | 0 – 1 | Wet/dry blend. 0 = no reverb, 1 = fully wet |
-| **Room size** | 0.2 – 6 seconds | Controls the decay length of the reverb tail. Shorter values feel like a small room; longer values feel like a large hall or cathedral. |
+| **Reverb** | 0 – 1 | How much room sound is added |
+| **Room size** | 0.1 – 6 s | How long the reverb rings |
+| **Echo** | 0 – 1 | How loud the echo is |
+| **Echo time** | 0.02 – 1.5 s | The gap between repeats |
+| **Echo repeats** | 0 – 1 | How many times the echo repeats before fading |
 
-> **Tip:** For voice, keep the mix low (0.1 – 0.25) and room size under 2 s to retain clarity.
-
----
-
-### Echo / Delay Panel
-
-Adds a rhythmic echo effect with feedback.
-
-| Knob | Range | Effect |
-|---|---|---|
-| **Mix** | 0 – 1 | How much echo is blended into the signal |
-| **Time** | 0.02 – 1.5 seconds | The gap between the original signal and each echo repeat |
-| **Feedback** | 0 – 1 | How much of each echo feeds back into itself. Higher values create longer, more prominent echo trails. The full knob range is scaled internally so the echo always dies away. |
+On a phone the four groups are tabs (**Tone**, **Voice**, **Dynamics**, **Space**) showing one at a time.
 
 ---
 
-## 5. Playback & Waveforms
+## 6. The transport bar
 
-Three waveform canvases update as you work:
-
-| Canvas | Shows |
+| Part | What it does |
 |---|---|
-| **Original Audio Preview** | The raw uploaded file |
-| **Cleaned Audio Preview** | After noise removal is applied |
-| **Augmented Audio Preview** | After augmentation is applied |
+| **Play / pause** | Plays the audio for the stage you are on |
+| **Time** | Current position and total length |
+| **Listen switch** | Remove Noise: **Before / After**. Augment & Effects: **Dry / Augmented**. Switching while playing carries on from the same moment. |
+| **Export MP3** | Saves the current stage's result |
+| **Continue** | Goes to the next stage |
 
-Each stage has a **▶ Play** button to listen. Click again or press **⏹ Stop** to stop playback. Playback uses your device's default audio output — make sure your volume is up.
+Click any waveform to jump to that point.
 
 ---
 
-## 6. Downloading Your Audio
+## 7. Exporting
 
-You can download at either stage — you don't have to use both.
+**Export MP3** saves the result of the stage you are on, as a 192 kbps MP3:
 
-| Button | What you get |
+| Stage | File saved |
 |---|---|
-| **⬇ Download cleaned audio** | The noise-removed audio, exported as `filename-cleaned.mp3` |
-| **⬇ Download augmented audio** | The fully augmented audio, exported as `filename-augmented.mp3` |
+| Trim | `<name>-edited.mp3` — the timeline as arranged |
+| Remove Noise | `<name>-cleaned.mp3` |
+| Augment & Effects | `<name>-augmented.mp3` — always matches the current controls |
 
-All encoding happens client-side using **lamejs**. Files are saved directly to your downloads folder. No data leaves your device.
-
----
-
-## 7. Typical Workflows
-
-### Podcast / voice-over cleanup
-
-1. Upload your recording.
-2. Set **Noise reduction** 0.5–0.7, **Hissing** 0.4–0.6, **Breath** 0.3–0.5.
-3. Click **Remove Noise** → listen to the cleaned preview.
-4. Switch to Stage 2, set Source to **Cleaned audio**.
-5. Click the **Podcast** preset.
-6. Adjust **Low shelf** (+1–3 dB) for warmth if needed.
-7. Click **Apply Augmentation** → **⬇ Download augmented audio**.
+Reverb and echo add a short tail to the end of the file so they can ring out fully.
 
 ---
 
-### Cinematic voice-over
+## 8. Typical workflows
 
-1. Upload a clean voice recording (or use a lightly noise-removed one).
-2. In Stage 2, click the **Cinematic** preset.
-3. Increase **Reverb mix** to 0.2–0.3, **Room size** to 2.5–4 s.
-4. Lower **Pitch** by −1 to −3 semitones for depth.
-5. Click **Apply Augmentation** → download.
+### Podcast or voice-over cleanup
 
----
+1. Open the recording.
+2. **Trim:** drag the yellow bars to cut dead air from the start and end. **Continue**.
+3. **Remove Noise:** press **Remove noise**, compare Before / After. **Continue**.
+4. **Augment & Effects:** set the source to **Cleaned**, choose **Podcast**, press play and adjust.
+5. **Export MP3**.
 
-### Creative robot / effect voice
+### Quick trim only
 
-1. Upload any voice recording.
-2. Click the **Robot** preset.
-3. Increase **Resonance** for a more metallic quality.
-4. Adjust **Harmonizer interval** — try +12 (octave) for a deeper robot effect.
-5. Click **Apply Augmentation** → download.
+1. Open the recording.
+2. Trim it on the timeline.
+3. **Export MP3** from the Trim stage.
 
----
+### Join two recordings
 
-### Quick noise removal only
+1. Open the first recording, then **+ Add audio** for the second.
+2. Drag the second clip right until its start snaps onto the end of the first.
+3. **Export MP3**, or **Continue** to clean and shape the result.
 
-1. Upload your file.
-2. Set noise removal knobs — the defaults are good for most microphone recordings.
-3. Click **Remove Noise**.
-4. Click **⬇ Download cleaned audio**. Done.
+### Speed up a slow section
 
----
-
-## 8. Tips & Best Practices
-
-**Start with noise removal, then augment.**
-Augmentation effects — especially reverb and saturation — make noise more audible, so always clean first.
-
-**Less is more with the knobs.**
-Every effect adds processing. Using many knobs at high values simultaneously tends to produce unnatural results. Build up gradually.
-
-**Use presets as a starting point.**
-Presets are calibrated for typical scenarios but are not final. Apply a preset and then adjust one or two knobs to taste.
-
-**Compare with the original.**
-Play the original and the processed version back-to-back before downloading. The playback buttons are there for exactly this.
-
-**Download both versions.**
-It costs nothing to download both the cleaned and augmented versions. You can decide later which one to use.
-
-**Feedback controls and reverb tails affect file length.**
-Delay feedback and long reverb room sizes add silence to the end of the file to capture the full tail. This is intentional — the exported file includes the complete decay.
+1. **Duplicate** the clip twice so there are three copies.
+2. Trim them to the part before, the slow section, and the part after.
+3. Select the middle clip and raise **Speed**.
+4. Slide the clips together end to end.
 
 ---
 
-*Audio Augment is made by [Creators AI Lab](https://github.com/your-username/audio-augment). MIT licensed.*
+## 9. Tips
+
+- **Compare often.** The Before / After and Dry / Augmented switches are the fastest way to tell whether a change helped.
+- **Less is usually more.** Strong noise removal, heavy compression and big EQ boosts all make a voice sound processed.
+- **Clean before you augment.** Effects such as compression make background noise louder, so remove noise first and set the source to **Cleaned**.
+- **Long files need memory.** Very long recordings may be too much for some phones; a computer works best for those.
+- **Watch the level.** Several boosts stacked together can make the export distort. If it sounds crunchy, lower **Output**.

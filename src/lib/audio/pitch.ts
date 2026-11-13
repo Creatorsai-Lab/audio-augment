@@ -3,14 +3,75 @@
 import { lowpassFilter } from "./biquad";
 
 /**
- * Pitch shifter that keeps duration: WSOLA time-stretch followed by resampling.
+ * WSOLA time-stretch: `ratio` times longer (or shorter) at the same pitch.
  *
  * WSOLA (waveform-similarity overlap-add) slides each grain a few milliseconds
  * to where it lines up with the waveform already written, so grains join
  * in phase instead of smearing against each other — the warble that plain
- * fixed-position granular shifting produces on voice. All channels share one
+ * fixed-position granular stretching produces on voice. All channels share one
  * set of grain positions so stereo images stay intact.
+ *
+ * Each returned channel holds `length` samples of audio followed by one grain
+ * of fade-out padding.
  */
+function stretch(
+  channels: Float32Array[],
+  ratio: number,
+  sampleRate: number,
+  onProgress?: (fraction: number) => void,
+): { stretched: Float32Array[]; length: number } {
+  const inputLength = channels[0].length;
+  const window = 2 * Math.round(sampleRate * 0.02); // ~40 ms grain
+  const hop = window / 2;
+  const tolerance = Math.round(sampleRate * 0.01); // ±10 ms search
+  const length = Math.ceil(inputLength * ratio);
+
+  const guide = channels.length === 1 ? channels[0] : mixdown(channels);
+  const positions = findGrainPositions(
+    guide,
+    ratio,
+    length,
+    hop,
+    tolerance,
+    sampleRate,
+    onProgress,
+  );
+
+  const win = new Float32Array(window);
+  for (let i = 0; i < window; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / window);
+
+  const stretched = channels.map((input) => {
+    const out = new Float32Array(length + window);
+    for (let k = 0; k < positions.length; k++) {
+      const pos = positions[k];
+      const base = k * hop;
+      for (let i = 0; i < window; i++) {
+        const idx = pos + i;
+        if (idx < 0) continue;
+        if (idx >= inputLength) break;
+        // The first grain has nothing to cross-fade from, so its attack stays flat.
+        out[base + i] += input[idx] * (k === 0 && i < hop ? 1 : win[i]);
+      }
+    }
+    return out;
+  });
+  return { stretched, length };
+}
+
+/** Change playback speed without changing pitch: 2 = twice as fast, half as long. */
+export function changeSpeedChannels(
+  channels: Float32Array[],
+  speed: number,
+  sampleRate: number,
+  onProgress?: (fraction: number) => void,
+): Float32Array[] {
+  if (Math.abs(speed - 1) < 0.001 || channels.length === 0) return channels;
+  const { stretched, length } = stretch(channels, 1 / speed, sampleRate, onProgress);
+  onProgress?.(1);
+  return stretched.map((s) => s.slice(0, length));
+}
+
+/** Pitch shifter that keeps duration: time-stretch, then resample back to the original length. */
 export function pitchShiftChannels(
   channels: Float32Array[],
   semitones: number,
@@ -20,41 +81,14 @@ export function pitchShiftChannels(
   if (Math.abs(semitones) < 0.01 || channels.length === 0) return channels;
   const ratio = Math.pow(2, semitones / 12);
   const length = channels[0].length;
-
-  const window = 2 * Math.round(sampleRate * 0.02); // ~40 ms grain
-  const hop = window / 2;
-  const tolerance = Math.round(sampleRate * 0.01); // ±10 ms search
-  const stretchedLength = Math.ceil(length * ratio);
-
-  const guide = channels.length === 1 ? channels[0] : mixdown(channels);
-  const positions = findGrainPositions(
-    guide,
+  const { stretched: all } = stretch(
+    channels,
     ratio,
-    stretchedLength,
-    hop,
-    tolerance,
     sampleRate,
     onProgress ? (f) => onProgress(f * 0.8) : undefined,
   );
 
-  const win = new Float32Array(window);
-  for (let i = 0; i < window; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / window);
-
-  return channels.map((input, c) => {
-    // Overlap-add the grains: `input` played `ratio` times longer at the same pitch.
-    const stretched = new Float32Array(stretchedLength + window);
-    for (let k = 0; k < positions.length; k++) {
-      const pos = positions[k];
-      const base = k * hop;
-      for (let i = 0; i < window; i++) {
-        const idx = pos + i;
-        if (idx < 0) continue;
-        if (idx >= length) break;
-        // The first grain has nothing to cross-fade from, so its attack stays flat.
-        stretched[base + i] += input[idx] * (k === 0 && i < hop ? 1 : win[i]);
-      }
-    }
-
+  return all.map((stretched, c) => {
     // Reading faster than 1x folds everything above the new Nyquist back down.
     if (ratio > 1) lowpassFilter(stretched, sampleRate, (0.45 * sampleRate) / ratio);
 
