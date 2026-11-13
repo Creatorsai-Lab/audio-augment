@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Editor, type Placement } from "./components/Editor";
 import { Panel } from "./components/Panel";
 import { Knob } from "./components/Knob";
 import { Waveform } from "./components/Waveform";
@@ -12,6 +13,7 @@ import {
   type RackAudio,
   type Settings,
 } from "./lib/audio/process";
+import { mixTracks, timelineEnd, type Track } from "./lib/audio/edit";
 import { encodeMp3 } from "./lib/audio/mp3";
 import { Player, type TrackAudio, type TrackId } from "./lib/audio/player";
 import { isAbort } from "./lib/audio/worker-client";
@@ -61,7 +63,14 @@ export function Studio() {
   /* ── State ── */
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [original, setOriginal] = useState<AudioBuffer | null>(null);
+  /** Trim / join editor: the tracks (rows), with history for undo and redo. */
+  const [timeline, setTimeline] = useState<{
+    past: Track[][];
+    tracks: Track[];
+    future: Track[][];
+  }>({ past: [], tracks: [], future: [] });
+  const [activeTrack, setActiveTrack] = useState<number | null>(null);
+  const [editStatus, setEditStatus] = useState<string>("");
   const [cleaned, setCleaned] = useState<AudioBuffer | null>(null);
   const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("original");
   /** Last offline render, and what it was rendered from. */
@@ -79,7 +88,7 @@ export function Studio() {
   const [augStatus, setAugStatus] = useState<string>("");
   const [noiseBusy, setNoiseBusy] = useState(false);
   const [augBusy, setAugBusy] = useState(false);
-  const [exporting, setExporting] = useState<"cleaned" | "augmented" | null>(null);
+  const [exporting, setExporting] = useState<"edited" | "cleaned" | "augmented" | null>(null);
   const [transport, setTransport] = useState<{ track: TrackId | null; playing: boolean }>({
     track: null,
     playing: false,
@@ -88,6 +97,12 @@ export function Studio() {
   const [player] = useState(() => new Player());
   const [pitchCache] = useState(() => new PitchCache());
   const loadRef = useRef(0);
+  const nextTrackId = useRef(1);
+  const keepHead = useRef<number | null>(null);
+  // Edits can be committed after an await (decoding a file to append), so they
+  // read the timeline through a ref rather than a possibly stale closure.
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
   const noiseJob = useRef<AbortController | null>(null);
   const augJob = useRef<AbortController | null>(null);
 
@@ -96,6 +111,9 @@ export function Studio() {
     setSettings((s) => ({ ...s, [k]: v }));
 
   /* ── Derived ── */
+  const tracks = timeline.tracks;
+  // Everything downstream works on the mixed-down timeline.
+  const original = useMemo(() => mixTracks(tracks), [tracks]);
   const augSource = selectedSource === "original" ? original : cleaned;
   const liveAudio = rackAudio && rackAudio.source === augSource ? rackAudio.audio : null;
   const augFresh =
@@ -103,7 +121,9 @@ export function Studio() {
 
   const audioFor = (track: TrackId): TrackAudio | null => {
     if (track === "augmented") return liveAudio;
-    const main = track === "original" ? original : cleaned;
+    // The editor's timeline and the "original" preview play the same mix,
+    // but as separate tracks so each has its own playhead and button.
+    const main = track === "cleaned" ? cleaned : original;
     return main && { main };
   };
 
@@ -172,43 +192,157 @@ export function Studio() {
     const audio =
       track === "augmented"
         ? liveAudio
-        : track === "original"
-          ? original && { main: original }
-          : cleaned && { main: cleaned };
+        : track === "cleaned"
+          ? cleaned && { main: cleaned }
+          : original && { main: original };
     if (!audio || player.isCurrent(audio)) return;
     if (player.playing) player.play(track, audio);
     else player.seek(player.position(), track, audio);
   }, [player, original, cleaned, liveAudio]);
 
-  /* ── Load file — decode only, NO auto-cleaning ── */
-  const loadFile = async (file: File) => {
-    const load = ++loadRef.current;
+  // After an edit the mix is new; put the timeline playhead back where it was.
+  useEffect(() => {
+    const at = keepHead.current;
+    keepHead.current = null;
+    if (at !== null && original) player.seek(at, "edit", { main: original });
+  }, [player, original]);
+
+  /* ── Trim / join editor ── */
+  // Anything made from the old audio (cleaned, augmented, pitch cache) is void after an edit.
+  const invalidateDownstream = () => {
     noiseJob.current?.abort();
     noiseJob.current = null;
     augJob.current?.abort();
     augJob.current = null;
+    // Remember where the timeline playhead was so an edit doesn't rewind it.
+    keepHead.current = player.track === "edit" ? player.position() : null;
     player.stop();
-    setNoiseStatus("Decoding audio…");
-    setNoiseBusy(true);
+    pitchCache.clear();
+    setCleaned(null);
+    setAugmented(null);
+    setSelectedSource("original");
+    setNoiseBusy(false);
+    setAugBusy(false);
+    setAugStatus("");
+    setEditStatus("");
+  };
+
+  const describe = (list: readonly Track[]) => {
+    const first = list[0];
+    if (!first) return "";
+    const rate = first.buffer.sampleRate;
+    const channels = Math.max(...list.map((t) => t.buffer.numberOfChannels));
+    return `${list.length > 1 ? `${list.length} tracks` : first.name} · ${(timelineEnd(list) / rate).toFixed(1)}s · ${rate} Hz · ${channels}ch`;
+  };
+
+  /** Apply an edit as one undoable step. */
+  const commit = (edit: (tracks: Track[]) => Track[]) => {
+    const { past, tracks: current } = timelineRef.current;
+    const next = edit(current);
+    if (next === current) return;
+    invalidateDownstream();
+    setTimeline({ past: [...past, current].slice(-100), tracks: next, future: [] });
+    setNoiseStatus(describe(next));
+    if (!next.some((t) => t.id === activeTrack)) setActiveTrack(next[0]?.id ?? null);
+  };
+
+  const undo = () => {
+    const previous = timeline.past.at(-1);
+    if (!previous) return;
+    invalidateDownstream();
+    setTimeline({
+      past: timeline.past.slice(0, -1),
+      tracks: previous,
+      future: [tracks, ...timeline.future],
+    });
+    setNoiseStatus(describe(previous));
+  };
+
+  const redo = () => {
+    const next = timeline.future[0];
+    if (!next) return;
+    invalidateDownstream();
+    setTimeline({
+      past: [...timeline.past, tracks],
+      tracks: next,
+      future: timeline.future.slice(1),
+    });
+    setNoiseStatus(describe(next));
+  };
+
+  /** Trim (yellow bars) or slide one track along the timeline. */
+  const placeTrack = (id: number, placement: Placement) =>
+    commit((list) => list.map((t) => (t.id === id ? { ...t, ...placement } : t)));
+
+  const duplicateTrack = () =>
+    commit((list) => {
+      const index = list.findIndex((t) => t.id === activeTrack);
+      const source = list[index];
+      if (!source) return list;
+      // The copy starts where the timeline currently ends, ready to be trimmed or moved.
+      const copy = {
+        ...source,
+        id: nextTrackId.current++,
+        name: `${source.name} (copy)`,
+        at: timelineEnd(list),
+      };
+      setActiveTrack(copy.id);
+      return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
+    });
+
+  // Keyboard: undo / redo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target;
+      const typing =
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLInputElement && el.type !== "range");
+      if (typing) return;
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if ((e.ctrlKey || e.metaKey) && key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  /* ── Load file — decode only, NO auto-cleaning ── */
+  // "replace" starts a new project; "append" adds the file as another track to join.
+  const loadFile = async (file: File, mode: "replace" | "append" = "replace") => {
+    const load = ++loadRef.current;
+    const setStatus = mode === "replace" ? setNoiseStatus : setEditStatus;
+    setStatus("Decoding audio…");
     try {
       const buf = await player.context().decodeAudioData(await file.arrayBuffer());
       if (load !== loadRef.current) return;
-      pitchCache.clear();
-      setOriginal(buf);
-      setCleaned(null);
-      setAugmented(null);
-      setSelectedSource("original");
-      setFileName(file.name);
-      setNoiseStatus(
-        `${file.name} · ${buf.duration.toFixed(1)}s · ${buf.sampleRate} Hz · ${buf.numberOfChannels}ch`,
-      );
-      setAugStatus("");
+      const track: Track = {
+        id: nextTrackId.current++,
+        name: file.name,
+        buffer: buf,
+        start: 0,
+        end: buf.length,
+        at: 0,
+      };
+      setActiveTrack(track.id);
+      if (mode === "append" && timelineRef.current.tracks.length > 0) {
+        // A joined file starts where the timeline currently ends.
+        commit((list) => [...list, { ...track, at: timelineEnd(list) }]);
+      } else {
+        invalidateDownstream();
+        setTimeline({ past: [], tracks: [track], future: [] });
+        setFileName(file.name);
+        setNoiseStatus(describe([track]));
+      }
     } catch {
       if (load === loadRef.current) {
-        setNoiseStatus("Could not decode that file. Try a standard .mp3 or .wav.");
+        setStatus("Could not decode that file. Try a standard .mp3 or .wav.");
       }
-    } finally {
-      if (load === loadRef.current) setNoiseBusy(false);
     }
   };
 
@@ -279,11 +413,14 @@ export function Studio() {
   };
 
   /* ── Download helper ── */
-  const download = async (kind: "cleaned" | "augmented") => {
-    const setStatus = kind === "cleaned" ? setNoiseStatus : setAugStatus;
+  const download = async (kind: "edited" | "cleaned" | "augmented") => {
+    const setStatus =
+      kind === "edited" ? setEditStatus : kind === "cleaned" ? setNoiseStatus : setAugStatus;
+    const label = { edited: "Combined", cleaned: "Cleaned", augmented: "Augmented" }[kind];
     setExporting(kind);
     try {
-      const buffer = kind === "cleaned" ? cleaned : await renderAugmentation();
+      const buffer =
+        kind === "edited" ? original : kind === "cleaned" ? cleaned : await renderAugmentation();
       if (!buffer) return;
       setStatus("Encoding MP3… 0%");
       const blob = await encodeMp3(buffer, {
@@ -298,7 +435,7 @@ export function Studio() {
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setStatus(`${kind === "augmented" ? "Augmented" : "Cleaned"} MP3 download started.`);
+      setStatus(`${label} MP3 download started.`);
     } catch (err) {
       if (!isAbort(err)) setStatus(`Download failed: ${message(err)}`);
     } finally {
@@ -311,7 +448,7 @@ export function Studio() {
   /* ══════════════════════════════════════════════════════════════════ */
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8">
+    <main className="mx-auto max-w-7xl px-5 py-8">
       {/* ── Header ── */}
       <header className="mb-16 flex flex-col items-center justify-between gap-6 sm:flex-row sm:gap-0">
         {/* Left Side: Logo & Name */}
@@ -406,6 +543,28 @@ export function Studio() {
         </span>
       </div>
 
+      {/*  SECTION 0 — TRIM & JOIN                                   */}
+      <Editor
+        tracks={tracks}
+        activeId={activeTrack}
+        transport={transport}
+        status={editStatus}
+        busy={exporting !== null}
+        canUndo={timeline.past.length > 0}
+        canRedo={timeline.future.length > 0}
+        getPosition={getPosition}
+        onActivate={setActiveTrack}
+        onSeek={(t) => seek("edit", t)}
+        onChange={placeTrack}
+        onRemove={() => commit((list) => list.filter((t) => t.id !== activeTrack))}
+        onPreview={() => toggle("edit")}
+        onDuplicate={duplicateTrack}
+        onUndo={undo}
+        onRedo={redo}
+        onAdd={(file) => void loadFile(file, "append")}
+        onDownload={() => download("edited")}
+      />
+
       {/*  SECTION 1 — NOISE & BACKGROUND REMOVAL                    */}
       <section
         onDragOver={(e) => e.preventDefault()}
@@ -452,7 +611,6 @@ export function Studio() {
             </p>
             <Waveform
               buffer={original}
-              color="oklch(0.55 0.02 250)"
               active={transport.track === "original"}
               getPosition={getPosition}
               onSeek={(t) => seek("original", t)}
@@ -478,7 +636,6 @@ export function Studio() {
             </p>
             <Waveform
               buffer={cleaned}
-              color="#c75d3a"
               active={transport.track === "cleaned"}
               getPosition={getPosition}
               onSeek={(t) => seek("cleaned", t)}
@@ -531,7 +688,6 @@ export function Studio() {
           </p>
           <Waveform
             buffer={augmented?.buffer ?? augSource}
-            color="#c75d3a"
             dimmed={!augFresh}
             active={transport.track === "augmented"}
             getPosition={getPosition}

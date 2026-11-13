@@ -50,6 +50,26 @@ Once loaded, the status bar shows the **filename**, **duration**, **sample rate*
 
 ---
 
+## Trim & Join (before Stage 1)
+
+The **Trim & Join** card sits between the upload box and noise removal. It is a timeline: each audio file is a clip on its own lane under a shared time scale, and what you hear and export is every clip at its position on that scale. The result is what Stage 1 and Stage 2 work on.
+
+| Action | How |
+|---|---|
+| **Trim** | Drag the yellow bar at either end of a clip inward. The trimmed part disappears; drag the bar back out to restore it. The exact time is shown while dragging. |
+| **Move a clip** | Drag the clip left or right in its lane. Its edges snap to the start of the timeline and to the edges of other clips, so clips can be placed end to end without a gap. |
+| **Join files** | **+ Add audio** (or drop a file on the card). The new clip starts where the timeline currently ends. |
+| **Repeat a part** | Click a clip to highlight it, then **Duplicate** (⧉ in the bar on the right). The copy appears on a new lane after the end of the timeline; trim and move it as needed. |
+| **Remove a middle section** | Duplicate the clip, trim the first copy to the part before the section and the second to the part after it, then slide the second up against the first. |
+| **Remove a clip** | Click it to highlight it, then **✕** in the bar on the right. |
+| **Undo / Redo** | ↶ ↷ in the bar on the right, or `Ctrl+Z` / `Ctrl+Shift+Z`. |
+| **Preview** | **▶ Play all tracks** plays the timeline; one playhead moves across all lanes. Click the time scale or empty lane space to move the playhead. |
+| **Export** | **⬇ Download combined audio** saves the timeline as MP3 without cleaning or augmenting it. |
+
+Gaps between clips are silence in the result, and clips that overlap in time are mixed together. Any edit clears the cleaned and augmented results, because they no longer match the audio. **+ Upload Audio** at the top always starts over with a single new file.
+
+---
+
 ## 3. Stage 1 — Noise Removal
 
 The first stage analyses and removes unwanted background noise from the raw audio. It runs entirely offline using spectral processing — no AI cloud service.

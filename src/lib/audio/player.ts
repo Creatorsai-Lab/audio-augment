@@ -1,6 +1,7 @@
 import { buildRack, defaultSettings, tailSeconds, type Rack, type Settings } from "./process";
 
-export type TrackId = "original" | "cleaned" | "augmented";
+/** "edit" is the trim & join timeline; the others are the pipeline stages. */
+export type TrackId = "edit" | "original" | "cleaned" | "augmented";
 
 /** `harmony` is only used by the augmented track. */
 export type TrackAudio = { main: AudioBuffer; harmony?: AudioBuffer | null };
