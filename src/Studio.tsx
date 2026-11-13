@@ -296,10 +296,9 @@ function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined
           <p className=" text-[13px] text-muted-foreground" aria-live="polite">
             {notice || "Drag drop a file anywhere · MP3 or WAV"}
           </p>
-          <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
+          <span className={`${button.primary} upload-cta mt-6 w-full sm:w-auto`}>
             <Icon name="upload" /> Upload audio
           </span>
-          
         </div>
         {input}
       </label>
@@ -369,7 +368,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
       <div className="panel overflow-hidden">
         <div className="flex items-center gap-0.5 p-1.5">
           <Tool icon="plus" label="Add audio" onClick={() => addRef.current?.click()} />
-          <span className="mx-1 h-5 w-px bg-border" />
+          <span className="mx-1 h-5 w-px bg-primary" />
           <Tool icon="copy" label="Duplicate" onClick={s.duplicateTrack} disabled={noTrack} />
           <Tool
             icon="speed"
@@ -776,6 +775,15 @@ function Augment({ s }: { s: StudioState }) {
         <Module title="Dynamics">
           <div className="grid gap-4">
             <Dial
+              label="Volume"
+              value={Math.round(v.volume * 100)}
+              min={10}
+              max={200}
+              step={5}
+              unit="%"
+              onChange={(x) => s.set("volume", x / 100)}
+            />
+            <Dial
               label="Compressor"
               value={v.compressor}
               min={0}
@@ -788,15 +796,6 @@ function Augment({ s }: { s: StudioState }) {
               min={0}
               max={1}
               onChange={(x) => s.set("saturation", x)}
-            />
-            <Dial
-              label="Volume"
-              value={Math.round(v.volume * 100)}
-              min={10}
-              max={200}
-              step={5}
-              unit="%"
-              onChange={(x) => s.set("volume", x / 100)}
             />
           </div>
         </Module>

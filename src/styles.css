@@ -273,3 +273,36 @@
     animation: none;
   }
 }
+
+/* ── Upload button: the page's starting point ──
+   A ring ripples out from the button and its arrow lifts, on a slow loop. */
+.upload-cta {
+  animation: upload-ring 2.2s ease-out infinite;
+}
+.upload-cta svg {
+  animation: upload-lift 2.2s ease-in-out infinite;
+}
+@keyframes upload-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+@keyframes upload-lift {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-cta,
+  .upload-cta svg {
+    animation: none;
+  }
+}
