@@ -12,9 +12,8 @@ const STROKES = {
   speed: "M12 9v4.5l3 1.5M9.5 2.5h5M12 22a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17z",
   download: "M12 4v11M7 11l5 5 5-5M5 20h14",
   upload: "M12 16V5M7 9l5-5 5 5M5 20h14",
-  arrow: "M5 12h14M13 6l6 6-6 6",
+  arrowDown: "M12 5v14M6 13l6 6 6-6",
   check: "M5 12.5l4.5 4.5L19 7.5",
-  refresh: "M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4",
   external: "M8 16 16 8M9.5 8H16v6.5",
 } as const;
 

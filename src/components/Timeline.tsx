@@ -146,7 +146,7 @@ function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSe
   return (
     <div
       ref={laneRef}
-      className="relative h-20 touch-pan-x rounded-md bg-muted/60"
+      className="relative h-[5.5rem] touch-pan-x rounded-md bg-muted/60"
       onPointerDown={(e) => {
         // Empty lane space moves the playhead.
         const box = e.currentTarget.getBoundingClientRect();
@@ -154,7 +154,7 @@ function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSe
       }}
     >
       <div
-        className={`absolute inset-y-2 flex overflow-hidden rounded-md bg-background shadow-sm ${highlighted ? "ring-2 ring-trim" : "ring-1 ring-border"}`}
+        className={`absolute inset-y-3 flex overflow-hidden rounded-md bg-background shadow-sm ${highlighted ? "ring-2 ring-trim" : "ring-1 ring-border"}`}
         style={{ left: `${(at / view) * 100}%`, width: `${((end - start) / view) * 100}%` }}
       >
         <div
@@ -275,67 +275,138 @@ export function Timeline(p: TimelineProps) {
     p.onSeek(Math.max(0, (e.clientX - box.left) / PIXELS_PER_SECOND));
   };
 
+  const contentWidth = viewSeconds * PIXELS_PER_SECOND;
+
   return (
-    <div ref={scrollRef} className="overflow-x-auto pb-2">
-      <div className="relative" style={{ width: `${viewSeconds * PIXELS_PER_SECOND}px` }}>
-        {/* Time scale: a label every 10 seconds, a small tick every second.
+    <div>
+      <div ref={scrollRef} className="no-scrollbar overflow-x-auto">
+        <div className="relative" style={{ width: `${contentWidth}px` }}>
+          {/* Time scale: a label every 10 seconds, a small tick every second.
             Click or drag on it to move the playhead. */}
-        <div
-          className="relative mb-1.5 h-6 cursor-pointer touch-none select-none border-b border-border font-mono text-[10px] text-muted-foreground"
-          title="Click or drag to move the playhead"
-          style={{
-            backgroundImage: "linear-gradient(to right, var(--border) 1px, transparent 1px)",
-            backgroundSize: `${PIXELS_PER_SECOND}px 5px`,
-            backgroundRepeat: "repeat-x",
-            backgroundPosition: "left bottom",
-          }}
-          onPointerDown={(e) => {
-            scrubbing.current = true;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            seekFromRuler(e);
-          }}
-          onPointerMove={(e) => {
-            if (scrubbing.current) seekFromRuler(e);
-          }}
-          onPointerUp={() => (scrubbing.current = false)}
-          onPointerCancel={() => (scrubbing.current = false)}
-        >
-          {divisions.map((t) => (
-            <span
-              key={t}
-              className="pointer-events-none absolute bottom-0 flex h-full items-end border-l border-muted-foreground/60 pb-1 pl-1 leading-none"
-              style={{ left: `${t * PIXELS_PER_SECOND}px` }}
-            >
-              {clock(t)}
-            </span>
-          ))}
-        </div>
+          <div
+            className="relative mb-1.5 h-6 cursor-pointer touch-none select-none border-b border-border font-mono text-[10px] text-muted-foreground"
+            title="Click or drag to move the playhead"
+            style={{
+              backgroundImage: "linear-gradient(to right, var(--border) 1px, transparent 1px)",
+              backgroundSize: `${PIXELS_PER_SECOND}px 5px`,
+              backgroundRepeat: "repeat-x",
+              backgroundPosition: "left bottom",
+            }}
+            onPointerDown={(e) => {
+              scrubbing.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              seekFromRuler(e);
+            }}
+            onPointerMove={(e) => {
+              if (scrubbing.current) seekFromRuler(e);
+            }}
+            onPointerUp={() => (scrubbing.current = false)}
+            onPointerCancel={() => (scrubbing.current = false)}
+          >
+            {divisions.map((t) => (
+              <span
+                key={t}
+                className="pointer-events-none absolute bottom-0 flex h-full items-end border-l border-muted-foreground/60 pb-1 pl-1 leading-none"
+                style={{ left: `${t * PIXELS_PER_SECOND}px` }}
+              >
+                {clock(t)}
+              </span>
+            ))}
+          </div>
 
-        <div className="grid gap-1.5">
-          {p.tracks.map((track) => (
-            <Lane
-              key={track.id}
-              track={track}
-              view={view}
-              snapPoints={p.tracks
-                .filter((t) => t.id !== track.id)
-                .flatMap((t) => [t.at, t.at + t.end - t.start])}
-              highlighted={track.id === p.activeId}
-              onActivate={p.onActivate}
-              onChange={p.onChange}
-              onSeek={p.onSeek}
-            />
-          ))}
-        </div>
+          <div className="grid gap-1.5">
+            {p.tracks.map((track) => (
+              <Lane
+                key={track.id}
+                track={track}
+                view={view}
+                snapPoints={p.tracks
+                  .filter((t) => t.id !== track.id)
+                  .flatMap((t) => [t.at, t.at + t.end - t.start])}
+                highlighted={track.id === p.activeId}
+                onActivate={p.onActivate}
+                onChange={p.onChange}
+                onSeek={p.onSeek}
+              />
+            ))}
+          </div>
 
-        {/* Main playhead across the scale and every lane */}
-        <div
-          ref={headRef}
-          className="pointer-events-none absolute inset-y-0 z-30 w-0.5 -translate-x-1/2 bg-foreground"
-        >
-          <div className="absolute -left-[5px] top-0 h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-foreground" />
+          {/* Main playhead across the scale and every lane */}
+          <div
+            ref={headRef}
+            className="pointer-events-none absolute inset-y-0 z-30 w-0.5 -translate-x-1/2 bg-foreground"
+          >
+            <div className="absolute -left-[5px] top-0 h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-foreground" />
+          </div>
         </div>
       </div>
+      <ScrollBar scroller={scrollRef} contentWidth={contentWidth} visibleWidth={visibleWidth} />
+    </div>
+  );
+}
+
+/**
+ * The timeline's scrollbar. Drawn by hand rather than left to the browser so
+ * that it is always visible (phones hide native scrollbars until you scroll)
+ * and clearly shows how much of the timeline is off screen.
+ */
+function ScrollBar(p: {
+  scroller: RefObject<HTMLDivElement | null>;
+  contentWidth: number;
+  visibleWidth: number;
+}) {
+  const { scroller } = p;
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; left: number } | null>(null);
+  const overflowing = p.contentWidth > p.visibleWidth + 1;
+
+  // Keep the thumb in step with the scroll position, however it was changed.
+  useEffect(() => {
+    const el = scroller.current;
+    const thumb = thumbRef.current;
+    if (!el || !thumb) return;
+    const sync = () => {
+      thumb.style.width = `${(el.clientWidth / el.scrollWidth) * 100}%`;
+      thumb.style.left = `${(el.scrollLeft / el.scrollWidth) * 100}%`;
+    };
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    return () => el.removeEventListener("scroll", sync);
+  }, [scroller, overflowing, p.contentWidth, p.visibleWidth]);
+
+  if (!overflowing) return null;
+
+  return (
+    <div
+      className="group relative mt-2.5 h-3 cursor-pointer touch-none rounded-full bg-muted"
+      title="Drag to scroll the timeline"
+      onPointerDown={(e) => {
+        const el = scroller.current;
+        const thumb = thumbRef.current?.getBoundingClientRect();
+        const box = e.currentTarget.getBoundingClientRect();
+        if (!el || !thumb || box.width === 0) return;
+        // Pressing the track outside the thumb centres the view on that spot.
+        if (e.clientX < thumb.left || e.clientX > thumb.right) {
+          el.scrollLeft =
+            ((e.clientX - box.left) / box.width) * el.scrollWidth - el.clientWidth / 2;
+        }
+        drag.current = { x: e.clientX, left: el.scrollLeft };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const el = scroller.current;
+        const start = drag.current;
+        const width = e.currentTarget.getBoundingClientRect().width;
+        if (!el || !start || width === 0) return;
+        el.scrollLeft = start.left + ((e.clientX - start.x) / width) * el.scrollWidth;
+      }}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+    >
+      <div
+        ref={thumbRef}
+        className="absolute inset-y-0 rounded-full bg-primary/75 transition-colors group-hover:bg-primary"
+      />
     </div>
   );
 }

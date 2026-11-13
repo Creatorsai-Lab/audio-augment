@@ -9,11 +9,11 @@
 
 1. [How the studio is laid out](#1-how-the-studio-is-laid-out)
 2. [Opening a recording](#2-opening-a-recording)
-3. [Stage 01 — Trim](#3-stage-01--trim)
-4. [Stage 02 — Remove Noise](#4-stage-02--remove-noise)
-5. [Stage 03 — Augment & Effects](#5-stage-03--augment--effects)
-6. [The transport bar](#6-the-transport-bar)
-7. [Exporting](#7-exporting)
+3. [Section 01 — Trim](#3-section-01--trim)
+4. [Section 02 — Remove Noise](#4-section-02--remove-noise)
+5. [Section 03 — Augment & Effects](#5-section-03--augment--effects)
+6. [Playback](#6-playback)
+7. [Downloading](#7-downloading)
 8. [Typical workflows](#8-typical-workflows)
 9. [Tips](#9-tips)
 
@@ -25,34 +25,32 @@ Audio Augment runs entirely in your browser or as a desktop app. Everything is p
 
 **Supported formats:** `.mp3` · `.wav`
 
-The studio has three stages, shown as tabs at the top. Only one stage is on screen at a time:
+The studio is one page with three sections, one below the other. Use any of them on their own, or all three in order:
 
-| Tab | What it is for |
+| Section | What it is for |
 |---|---|
 | **01 Trim** | Trim, repeat, re-time and join clips on a timeline |
 | **02 Remove Noise** | Take out background noise, hiss, breaths and harsh S sounds |
 | **03 Augment & Effects** | Equaliser, voice, dynamics and space effects, heard live |
 
-A tab shows a tick once its stage is done. You can move between stages freely and skip any you don't need.
-
-A **transport bar** is docked at the bottom of every stage: play/pause, the current time, what you are listening to, and the stage's main action.
+Every section has its own play button and its own download button.
 
 ---
 
 ## 2. Opening a recording
 
-The studio opens on the **Trim** stage with an upload area in the timeline.
+The upload box is at the top of the page, above the three sections.
 
 | Method | How |
 |---|---|
-| **Choose** | Click **Choose a recording** and pick an `.mp3` or `.wav` |
+| **Choose** | Click **Upload audio** and pick an `.mp3` or `.wav` |
 | **Drag & drop** | Drop a file anywhere on the page |
 
-**New recording** (top right of the Trim stage) starts over with a different file.
+Once a recording is loaded, the box shrinks to one row showing the file name and length. **Upload another** there starts over with a different file; to add a second file alongside the first, use **+ Add audio** in the Trim section instead.
 
 ---
 
-## 3. Stage 01 — Trim
+## 3. Section 01 — Trim
 
 A timeline: each audio file is a clip on its own lane under a shared time scale (a label every 10 seconds). What you hear and export is every clip at its position on that scale. A timeline longer than the screen scrolls sideways.
 
@@ -71,11 +69,11 @@ A timeline: each audio file is a clip on its own lane under a shared time scale 
 
 Gaps between clips are silence in the result, and clips that overlap in time are mixed together.
 
-Pressing **Continue** (or switching to another tab) passes the timeline's result on to the next stages. If you come back and change the timeline later, noise removal has to be run again.
+Editing the timeline does not change what the two sections below are working on. When the timeline is ready, click **Use in noise removal** to send its result to them; the button then reads **In noise removal**. Sending a new result clears an earlier noise removal, because it no longer matches the audio.
 
 ---
 
-## 4. Stage 02 — Remove Noise
+## 4. Section 02 — Remove Noise
 
 | Slider | What it does | Default |
 |---|---|---|
@@ -86,17 +84,17 @@ Pressing **Continue** (or switching to another tab) passes the timeline's result
 
 Set the sliders, then press **Remove noise**. A percentage shows progress. Two waveforms appear: **Before** and **After**.
 
-Use the **Before / After** switch in the transport bar to compare. Switching while playing carries on from the same moment.
+Use the **Before / After** switch next to the play button to compare. Switching while playing carries on from the same moment.
 
 Higher values remove more, but can thin the voice. Change a slider and press **Remove noise again** to retry.
 
 ---
 
-## 5. Stage 03 — Augment & Effects
+## 5. Section 03 — Augment & Effects
 
 **Source.** At the top right, choose what to work on: **Original** or **Cleaned** (available after noise removal). This is not switched for you.
 
-**Live preview.** Press play in the transport bar and move any control: the sound changes as you move it. Pitch and harmony take a moment to update after you let go.
+**Live preview.** Press play under the waveform and move any control: the sound changes as you move it. Pitch and harmony take a moment to update after you let go.
 
 ### Presets
 
@@ -141,33 +139,31 @@ Ten faders from 31 Hz to 16 kHz, each ±12 dB. Drag a fader up to boost that ban
 | **Echo time** | 0.02 – 1.5 s | The gap between repeats |
 | **Echo repeats** | 0 – 1 | How many times the echo repeats before fading |
 
-On a phone the four groups are tabs (**Tone**, **Voice**, **Dynamics**, **Space**) showing one at a time.
+---
+
+## 6. Playback
+
+Each section has a round play button with the current time beside it:
+
+| Section | Plays | Switch |
+|---|---|---|
+| Trim | The whole timeline; one playhead moves across all lanes | — |
+| Remove Noise | The audio before or after noise removal | **Before / After** |
+| Augment & Effects | The audio with your effects, live | **Dry / Augmented** |
+
+Flipping a switch while that section is playing carries on from the same moment. Click any waveform to jump to that point.
 
 ---
 
-## 6. The transport bar
+## 7. Downloading
 
-| Part | What it does |
+Each section has its own download button, which saves a 192 kbps MP3:
+
+| Button | File saved |
 |---|---|
-| **Play / pause** | Plays the audio for the stage you are on |
-| **Time** | Current position and total length |
-| **Listen switch** | Remove Noise: **Before / After**. Augment & Effects: **Dry / Augmented**. Switching while playing carries on from the same moment. |
-| **Export MP3** | Saves the current stage's result |
-| **Continue** | Goes to the next stage |
-
-Click any waveform to jump to that point.
-
----
-
-## 7. Exporting
-
-**Export MP3** saves the result of the stage you are on, as a 192 kbps MP3:
-
-| Stage | File saved |
-|---|---|
-| Trim | `<name>-edited.mp3` — the timeline as arranged |
-| Remove Noise | `<name>-cleaned.mp3` |
-| Augment & Effects | `<name>-augmented.mp3` — always matches the current controls |
+| **Download combined audio** (Trim) | `<name>-edited.mp3` — the timeline as arranged |
+| **Download cleaned audio** (Remove Noise) | `<name>-cleaned.mp3` |
+| **Download augmented audio** (Augment & Effects) | `<name>-augmented.mp3` — always matches the current controls |
 
 Reverb and echo add a short tail to the end of the file so they can ring out fully.
 
@@ -178,22 +174,22 @@ Reverb and echo add a short tail to the end of the file so they can ring out ful
 ### Podcast or voice-over cleanup
 
 1. Open the recording.
-2. **Trim:** drag the yellow bars to cut dead air from the start and end. **Continue**.
-3. **Remove Noise:** press **Remove noise**, compare Before / After. **Continue**.
+2. **Trim:** drag the yellow bars to cut dead air from the start and end, then **Use in noise removal**.
+3. **Remove Noise:** press **Remove noise**, compare Before / After.
 4. **Augment & Effects:** set the source to **Cleaned**, choose **Podcast**, press play and adjust.
-5. **Export MP3**.
+5. **Download augmented audio**.
 
 ### Quick trim only
 
 1. Open the recording.
 2. Trim it on the timeline.
-3. **Export MP3** from the Trim stage.
+3. **Download combined audio**.
 
 ### Join two recordings
 
 1. Open the first recording, then **+ Add audio** for the second.
 2. Drag the second clip right until its start snaps onto the end of the first.
-3. **Export MP3**, or **Continue** to clean and shape the result.
+3. **Download combined audio**, or **Use in noise removal** to clean and shape the result.
 
 ### Speed up a slow section
 

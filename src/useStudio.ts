@@ -545,7 +545,6 @@ export function useStudio() {
     getPosition,
     toggle,
     seek,
-    pause: () => player.pause(),
     // timeline editing
     activeTrack,
     setActiveTrack,

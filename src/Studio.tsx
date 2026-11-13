@@ -1,7 +1,7 @@
 // The studio page. All behaviour comes from useStudio; this file is the
-// interface: one stage on screen at a time, and a single transport docked at
-// the bottom.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+// interface: upload at the top, then three sections on one page (trim, remove
+// noise, augment), each with its own playback and download.
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Timeline } from "./components/Timeline";
 import { Waveform } from "./components/Waveform";
 import { EQ_BANDS } from "./lib/audio/process";
@@ -9,24 +9,6 @@ import type { TrackId } from "./lib/audio/player";
 import { PRESETS, useStudio, type StudioState } from "./useStudio";
 import { button } from "./components/classes";
 import { Dial, EqFader, GitHubMark, Icon, Segmented, type IconName } from "./components/controls";
-
-type Stage = "arrange" | "clean" | "enhance";
-
-const STAGES: readonly { id: Stage; number: string; title: string; blurb: string }[] = [
-  { id: "arrange", number: "01", title: "Trim", blurb: "Trim, repeat, re-time and join clips." },
-  {
-    id: "clean",
-    number: "02",
-    title: "Remove Noise",
-    blurb: "Take out noise, hiss, breaths and harsh S sounds.",
-  },
-  {
-    id: "enhance",
-    number: "03",
-    title: "Augment & Effects",
-    blurb: "Shape the voice and hear every change live.",
-  },
-];
 
 const clock = (seconds: number) => {
   const s = Math.max(0, seconds);
@@ -43,64 +25,9 @@ const percentIn = (status: string) => {
 
 export function Studio() {
   const s = useStudio();
-  const [stage, setStage] = useState<Stage>("arrange");
-  // What the transport plays in each stage.
-  const [hearCleaned, setHearCleaned] = useState(false);
-  const [hearLive, setHearLive] = useState(true);
-
-  // Once noise removal finishes, the obvious next thing is to listen to it —
-  // including when the "before" audio is already playing.
-  const latest = useRef(s);
-  latest.current = s;
-  const cleaned = s.cleaned;
-  useEffect(() => {
-    setHearCleaned(cleaned !== null);
-    const now = latest.current;
-    if (cleaned && now.transport.playing && now.transport.track === "original") {
-      now.toggle("cleaned");
-    }
-  }, [cleaned]);
-
-  const monitor: TrackId =
-    stage === "arrange"
-      ? "edit"
-      : stage === "clean"
-        ? hearCleaned && s.cleaned
-          ? "cleaned"
-          : "original"
-        : hearLive
-          ? "augmented"
-          : s.selectedSource;
-
-  const monitorBuffer =
-    monitor === "edit"
-      ? s.mix
-      : monitor === "original"
-        ? s.original
-        : monitor === "cleaned"
-          ? s.cleaned
-          : (s.liveAudio?.main ?? null);
-
-  const playing = s.transport.playing && s.transport.track === monitor;
-
-  /** Switch what is heard; if something is playing it carries on from the same moment. */
-  const listenTo = (track: TrackId) => {
-    if (s.transport.playing && s.transport.track !== track) s.toggle(track);
-  };
-
-  const goTo = (next: Stage) => {
-    if (next === stage) return;
-    if (s.transport.playing) s.pause();
-    // Leaving the timeline hands its result to the later stages.
-    if (stage === "arrange" && !s.sent) s.sendToPipeline();
-    setStage(next);
-    window.scrollTo({ top: 0 });
-  };
 
   const openFile = (file: File | undefined, mode: "replace" | "append") => {
-    if (!file) return;
-    if (mode === "replace") setStage("arrange");
-    void s.loadFile(file, mode);
+    if (file) void s.loadFile(file, mode);
   };
 
   return (
@@ -109,47 +36,25 @@ export function Studio() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        // The first file starts the project; later drops on the timeline add to it.
-        if (s.tracks.length === 0) openFile(file, "replace");
-        else if (stage === "arrange") openFile(file, "append");
+        // The first file starts the project; later drops add to the timeline.
+        // (Dropping on the upload box itself always starts a new project.)
+        openFile(e.dataTransfer.files[0], s.tracks.length === 0 ? "replace" : "append");
       }}
     >
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-48 pt-5 sm:px-6 sm:pb-36">
-        <StageNav stage={stage} s={s} onStage={goTo} />
-        <div key={stage} className="rise-in mt-6">
-          {stage === "arrange" && (
-            <Arrange
-              s={s}
-              onAdd={(f) => openFile(f, "append")}
-              onNew={(f) => openFile(f, "replace")}
-            />
-          )}
-          {stage === "clean" && <Clean s={s} />}
-          {stage === "enhance" && <Enhance s={s} />}
-        </div>
+      <main className="rise-in mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] flex-1 gap-14 px-4 pb-20 pt-8 sm:px-6 sm:pt-10">
+        <Upload s={s} onFile={(f) => openFile(f, "replace")} />
+        <Trim s={s} onAdd={(f) => openFile(f, "append")} />
+        <RemoveNoise s={s} />
+        <Augment s={s} />
       </main>
 
-      <Dock
-        s={s}
-        stage={stage}
-        monitor={monitor}
-        buffer={monitorBuffer}
-        playing={playing}
-        hearCleaned={hearCleaned}
-        hearLive={hearLive}
-        onHearCleaned={(on) => {
-          setHearCleaned(on);
-          listenTo(on ? "cleaned" : "original");
-        }}
-        onHearLive={(on) => {
-          setHearLive(on);
-          listenTo(on ? "augmented" : s.selectedSource);
-        }}
-        onStage={goTo}
-      />
+      <footer className="border-t border-border">
+        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-muted-foreground sm:px-6">
+          © 2026 Audio Augment · Creators AI Lab · Everything runs on your device.
+        </p>
+      </footer>
     </div>
   );
 }
@@ -214,7 +119,123 @@ function Header() {
   );
 }
 
-/* ── Upload zone (shown in the timeline until there is audio) ────────── */
+/* ── Shared section pieces ──────────────────────────────────────────── */
+
+function SectionHead(p: {
+  /** Element id of the title, referenced by the section's aria-labelledby. */
+  id: string;
+  number: string;
+  title: string;
+  blurb: string;
+  status?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0">
+        <p className="font-mono text-xs text-primary">{p.number}</p>
+        <h2 id={p.id} className="stage-title mt-1.5">
+          {p.title}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{p.blurb}</p>
+      </div>
+      {p.children}
+      {p.status && (
+        <p className="w-full font-mono text-xs text-muted-foreground" aria-live="polite">
+          {p.status}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One section's playback row: play / pause, the time, an optional A/B switch
+ * (children) and the section's actions on the right.
+ */
+function Transport(p: {
+  /** What this plays, for the button's accessible name. */
+  label: string;
+  track: TrackId;
+  buffer: AudioBuffer | null;
+  s: StudioState;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  const { s, track, buffer } = p;
+  const { getPosition } = s;
+  const timeRef = useRef<HTMLSpanElement>(null);
+  const active = s.transport.track === track;
+  const playing = active && s.transport.playing;
+  const duration = buffer?.duration ?? 0;
+
+  // The readout is written straight to the DOM every frame.
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const pos = active ? Math.min(duration, getPosition()) : 0;
+      if (timeRef.current) timeRef.current.textContent = clock(pos);
+      if (active) frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [active, duration, getPosition]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <button
+        onClick={() => s.toggle(track)}
+        disabled={!buffer}
+        aria-label={`${playing ? "Pause" : "Play"} ${p.label}`}
+        title={`${playing ? "Pause" : "Play"} ${p.label}`}
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition active:scale-95 disabled:opacity-30"
+      >
+        <Icon name={playing ? "pause" : "play"} size={20} />
+      </button>
+      <div className="min-w-[5.5rem] font-mono text-sm tabular-nums leading-tight">
+        <span ref={timeRef}>0:00.0</span>
+        <span className="block text-[11px] text-muted-foreground">of {clock(duration)}</span>
+      </div>
+      {p.children}
+      {p.actions && (
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+          {p.actions}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DownloadButton(p: {
+  label: string;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`${button.primary} w-full sm:w-auto`}
+      disabled={p.disabled}
+      onClick={p.onClick}
+    >
+      <Icon name="download" /> {p.busy ? "Exporting…" : p.label}
+    </button>
+  );
+}
+
+function WaveBlock(p: { label: string; note?: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <span className="label-caps">{p.label}</span>
+        {p.note && <span className="text-xs text-muted-foreground">{p.note}</span>}
+      </div>
+      {p.children}
+    </div>
+  );
+}
+
+/* ── Upload ─────────────────────────────────────────────────────────── */
 
 // A fixed, hand-shaped envelope: decorative, and identical on every visit.
 const BARS = Array.from({ length: 72 }, (_, i) => {
@@ -224,126 +245,94 @@ const BARS = Array.from({ length: 72 }, (_, i) => {
   return Math.max(0.06, envelope * Math.abs(detail));
 });
 
-function UploadZone({
-  status,
-  onFile,
-}: {
-  status: string;
-  onFile: (file: File | undefined) => void;
-}) {
-  return (
-    <label className="group relative block cursor-pointer overflow-hidden rounded-xl border border-dashed border-border px-5 py-10 text-center transition hover:border-primary/70 sm:py-14">
-      <div className="grid-paper pointer-events-none absolute inset-0" />
-      <div className="relative">
-        <div className="flex h-14 items-end justify-center gap-[3px]" aria-hidden="true">
-          {BARS.map((h, i) => (
-            <span
-              key={i}
-              className={`w-[3px] shrink-0 rounded-full bg-primary/80 group-hover:bg-primary ${i % 2 ? "hidden sm:block" : ""}`}
-              style={{ height: `${h * 100}%`, opacity: 0.35 + h * 0.65 }}
-            />
-          ))}
-        </div>
-        <p className="mt-6 text-lg font-semibold tracking-tight sm:text-xl">
-          Start with a <span className="serif-accent text-[1.3em]">recording</span>
-        </p>
-        <p className="mx-auto mt-1.5 max-w-sm text-[13px] text-muted-foreground">
-          Everything runs on your device. Your audio is never uploaded.
-        </p>
-        <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
-          <Icon name="upload" /> Choose a recording
-        </span>
-        <p className="mt-3 text-[13px] text-muted-foreground" aria-live="polite">
-          {status || "or drop a file anywhere · MP3 or WAV"}
-        </p>
-      </div>
-      <input
-        type="file"
-        accept=".mp3,.wav,audio/*"
-        className="sr-only"
-        onChange={(e) => {
-          onFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
-    </label>
+/**
+ * The upload box at the top of the page. Large while there is no recording;
+ * once one is loaded it shrinks to a single row that names the file and offers
+ * to replace it. Choosing or dropping a file here always starts a new project.
+ */
+function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined) => void }) {
+  // Describe the uploaded file itself; the timeline may since have reshaped it.
+  const loaded = s.tracks.find((t) => t.name === s.fileName)?.source ?? s.original;
+  // Decoding progress and decode errors are reported through the same line.
+  const notice = /Decoding|Could not/.test(s.noiseStatus) ? s.noiseStatus : "";
+
+  const input = (
+    <input
+      type="file"
+      accept=".mp3,.wav,audio/*"
+      className="sr-only"
+      onChange={(e) => {
+        onFile(e.target.files?.[0]);
+        e.target.value = "";
+      }}
+    />
   );
-}
-
-/* ── Stage navigation ───────────────────────────────────────────────── */
-
-function StageNav({
-  stage,
-  s,
-  onStage,
-}: {
-  stage: Stage;
-  s: StudioState;
-  onStage: (stage: Stage) => void;
-}) {
-  const done: Record<Stage, boolean> = {
-    arrange: s.sent && s.original !== null,
-    clean: s.cleaned !== null,
-    enhance: s.augFresh,
+  const drop = {
+    onDragOver: (e: DragEvent) => e.preventDefault(),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onFile(e.dataTransfer.files[0]);
+    },
   };
+
+  if (loaded) {
+    return (
+      <section aria-label="Upload" {...drop}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-dashed border-border px-4 py-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Icon name="check" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{s.fileName ?? "Recording"}</p>
+            <p className="font-mono text-xs text-muted-foreground" aria-live="polite">
+              {notice ||
+                `${clock(loaded.duration)} · ${(loaded.sampleRate / 1000).toFixed(1)} kHz · ${loaded.numberOfChannels === 1 ? "mono" : "stereo"}`}
+            </p>
+          </div>
+          <label className={`${button.quiet} w-full cursor-pointer sm:w-auto`}>
+            <Icon name="upload" size={16} /> Upload another
+            {input}
+          </label>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <nav aria-label="Stages" className="grid grid-cols-3 gap-1.5 rounded-2xl bg-muted p-1.5">
-      {STAGES.map((st) => {
-        const on = st.id === stage;
-        return (
-          <button
-            key={st.id}
-            onClick={() => onStage(st.id)}
-            aria-current={on ? "step" : undefined}
-            className={`flex flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-2 transition sm:flex-row sm:justify-start sm:gap-2 sm:px-4 sm:py-2.5 ${
-              on ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span className={`font-mono text-[10px] sm:text-[11px] ${on ? "text-primary" : ""}`}>
-              {st.number}
-            </span>
-            <span className="text-center text-[12px] font-medium leading-tight sm:text-sm">
-              {st.title}
-            </span>
-            {done[st.id] && (
-              <span className="ml-auto hidden text-done sm:block" title="Done">
-                <Icon name="check" size={15} />
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </nav>
+    <section aria-label="Upload" {...drop}>
+      <label className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border px-5 py-10 text-center transition hover:border-primary/70 sm:py-12">
+        <div className="grid-paper pointer-events-none absolute inset-0" />
+        <div className="relative">
+          <div className="flex h-14 items-end justify-center gap-[3px]" aria-hidden="true">
+            {BARS.map((h, i) => (
+              <span
+                key={i}
+                className={`w-[3px] shrink-0 rounded-full bg-primary/80 group-hover:bg-primary ${i % 2 ? "hidden sm:block" : ""}`}
+                style={{ height: `${h * 100}%`, opacity: 0.35 + h * 0.65 }}
+              />
+            ))}
+          </div>
+          <p className="mt-6 text-lg font-semibold tracking-tight sm:text-xl">
+            Start with a <span className="serif-accent text-[1.3em]">recording</span>
+          </p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] text-muted-foreground">
+            Everything runs on your device. Your audio is never uploaded.
+          </p>
+          <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
+            <Icon name="upload" /> Upload audio
+          </span>
+          <p className="mt-3 text-[13px] text-muted-foreground" aria-live="polite">
+            {notice || "or drop a file anywhere · MP3 or WAV"}
+          </p>
+        </div>
+        {input}
+      </label>
+    </section>
   );
 }
 
-function StageHead({
-  stage,
-  status,
-  children,
-}: {
-  stage: Stage;
-  status?: string;
-  children?: ReactNode;
-}) {
-  const st = STAGES.find((x) => x.id === stage)!;
-  return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0">
-        <h2 className="stage-title">{st.title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{st.blurb}</p>
-      </div>
-      {children}
-      {status && (
-        <p className="w-full font-mono text-xs text-muted-foreground" aria-live="polite">
-          {status}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ── 01 Arrange ─────────────────────────────────────────────────────── */
+/* ── 01 Trim ────────────────────────────────────────────────────────── */
 
 function Tool(p: {
   icon: IconName;
@@ -369,20 +358,11 @@ function Tool(p: {
   );
 }
 
-function Arrange({
-  s,
-  onAdd,
-  onNew,
-}: {
-  s: StudioState;
-  onAdd: (file: File | undefined) => void;
-  onNew: (file: File | undefined) => void;
-}) {
+function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) => void }) {
   const [speedOpen, setSpeedOpen] = useState(false);
   // The slider moves freely; the stretch itself runs when it is released.
   const [draftSpeed, setDraftSpeed] = useState<number | null>(null);
   const addRef = useRef<HTMLInputElement>(null);
-  const newRef = useRef<HTMLInputElement>(null);
   const noTrack = s.activeTrack === null;
   const speed = draftSpeed ?? s.activeSpeed;
 
@@ -392,21 +372,13 @@ function Arrange({
   };
 
   return (
-    <section>
-      <StageHead stage="arrange" status={s.editStatus}>
-        <button className={button.quiet} onClick={() => newRef.current?.click()}>
-          <Icon name="refresh" size={16} /> New recording
-        </button>
-      </StageHead>
-      <input
-        ref={newRef}
-        type="file"
-        accept=".mp3,.wav,audio/*"
-        className="sr-only"
-        onChange={(e) => {
-          onNew(e.target.files?.[0]);
-          e.target.value = "";
-        }}
+    <section aria-labelledby="trim-title">
+      <SectionHead
+        id="trim-title"
+        number="01"
+        title="Trim"
+        blurb="Trim, repeat, re-time and join clips."
+        status={s.editStatus}
       />
       <input
         ref={addRef}
@@ -466,7 +438,9 @@ function Arrange({
 
         <div className="p-3 sm:p-4">
           {s.tracks.length === 0 ? (
-            <UploadZone status={s.noiseStatus} onFile={onNew} />
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Upload a recording above to start trimming.
+            </p>
           ) : (
             <Timeline
               tracks={s.tracks}
@@ -478,6 +452,41 @@ function Arrange({
               onChange={s.placeTrack}
             />
           )}
+        </div>
+
+        <div className="border-t border-border p-3 sm:px-4">
+          <Transport
+            label="all tracks"
+            track="edit"
+            buffer={s.mix}
+            s={s}
+            actions={
+              <>
+                <button
+                  className={`${button.quiet} h-11 w-full sm:w-auto`}
+                  disabled={s.sent}
+                  onClick={s.sendToPipeline}
+                  title="Use the timeline's result as the audio for noise removal and effects"
+                >
+                  {s.sent && s.original ? (
+                    <>
+                      <Icon name="check" size={16} /> In noise removal
+                    </>
+                  ) : (
+                    <>
+                      Use in noise removal <Icon name="arrowDown" size={16} />
+                    </>
+                  )}
+                </button>
+                <DownloadButton
+                  label="Download combined audio"
+                  busy={s.exporting === "edited"}
+                  disabled={!s.mix || s.exporting !== null}
+                  onClick={() => void s.download("edited")}
+                />
+              </>
+            }
+          />
         </div>
       </div>
 
@@ -492,28 +501,45 @@ function Arrange({
   );
 }
 
-/* ── 02 Clean ───────────────────────────────────────────────────────── */
+/* ── 02 Remove Noise ────────────────────────────────────────────────── */
 
-function WaveBlock(p: { label: string; note?: string; children: ReactNode }) {
-  return (
-    <div>
-      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-        <span className="label-caps">{p.label}</span>
-        {p.note && <span className="text-xs text-muted-foreground">{p.note}</span>}
-      </div>
-      {p.children}
-    </div>
-  );
-}
-
-function Clean({ s }: { s: StudioState }) {
+function RemoveNoise({ s }: { s: StudioState }) {
+  const [hearCleaned, setHearCleaned] = useState(false);
   // The same line also carries the file description; only show it while it reports work.
   const working = / Hz · /.test(s.noiseStatus) ? "" : s.noiseStatus;
   const progress = s.noiseBusy ? percentIn(s.noiseStatus) : null;
+  const track: TrackId = hearCleaned && s.cleaned ? "cleaned" : "original";
+
+  // Once noise removal finishes, the obvious next thing is to listen to the
+  // result — including when the "before" audio is already playing.
+  const latest = useRef(s);
+  latest.current = s;
+  const cleaned = s.cleaned;
+  useEffect(() => {
+    setHearCleaned(cleaned !== null);
+    const now = latest.current;
+    if (cleaned && now.transport.playing && now.transport.track === "original") {
+      now.toggle("cleaned");
+    }
+  }, [cleaned]);
+
+  /** Switch between before and after; if this section is playing, carry on from the same moment. */
+  const listenTo = (after: boolean) => {
+    setHearCleaned(after);
+    const next: TrackId = after ? "cleaned" : "original";
+    const mine = s.transport.track === "original" || s.transport.track === "cleaned";
+    if (s.transport.playing && mine && s.transport.track !== next) s.toggle(next);
+  };
 
   return (
-    <section>
-      <StageHead stage="clean" status={working} />
+    <section aria-labelledby="noise-title">
+      <SectionHead
+        id="noise-title"
+        number="02"
+        title="Remove Noise"
+        blurb="Take out noise, hiss, breaths and harsh S sounds."
+        status={working}
+      />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className="panel p-5">
           <div className="grid gap-4">
@@ -581,7 +607,7 @@ function Clean({ s }: { s: StudioState }) {
           </WaveBlock>
           <WaveBlock
             label="After"
-            {...(s.cleaned ? {} : { note: "Run Remove Noise to hear the difference" })}
+            {...(s.cleaned ? {} : { note: "Press Remove noise to hear the difference" })}
           >
             <Waveform
               buffer={s.cleaned}
@@ -590,33 +616,73 @@ function Clean({ s }: { s: StudioState }) {
               onSeek={(t) => s.seek("cleaned", t)}
             />
           </WaveBlock>
+
+          <div className="border-t border-border pt-4">
+            <Transport
+              label={track === "cleaned" ? "cleaned audio" : "original audio"}
+              track={track}
+              buffer={track === "cleaned" ? s.cleaned : s.original}
+              s={s}
+              actions={
+                <DownloadButton
+                  label="Download cleaned audio"
+                  busy={s.exporting === "cleaned"}
+                  disabled={!s.cleaned || s.exporting !== null}
+                  onClick={() => void s.download("cleaned")}
+                />
+              }
+            >
+              <Segmented
+                label="Listen to"
+                value={track === "cleaned" ? "after" : "before"}
+                onChange={(id) => listenTo(id === "after")}
+                options={[
+                  { id: "before", label: "Before" },
+                  { id: "after", label: "After", disabled: !s.cleaned },
+                ]}
+              />
+            </Transport>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-/* ── 03 Enhance ─────────────────────────────────────────────────────── */
+/* ── 03 Augment & Effects ───────────────────────────────────────────── */
 
-type Module = "tone" | "voice" | "dynamics" | "space";
-
-function ModuleCard(p: { id: Module; open: Module; title: string; children: ReactNode }) {
-  // Small screens show one module at a time; large screens show all four.
+function Module(p: { title: string; children: ReactNode }) {
   return (
-    <div className={`panel p-5 ${p.open === p.id ? "block" : "hidden"} lg:block`}>
-      <p className="label-caps mb-4 hidden lg:block">{p.title}</p>
+    <div className="panel p-5">
+      <p className="label-caps mb-4">{p.title}</p>
       {p.children}
     </div>
   );
 }
 
-function Enhance({ s }: { s: StudioState }) {
-  const [module, setModule] = useState<Module>("tone");
+function Augment({ s }: { s: StudioState }) {
+  const [hearLive, setHearLive] = useState(true);
   const v = s.settings;
+  const track: TrackId = hearLive ? "augmented" : s.selectedSource;
+  const buffer = hearLive ? (s.liveAudio?.main ?? null) : s.augSource;
+
+  /** Switch between dry and augmented; if this section is playing, carry on from the same moment. */
+  const listenTo = (live: boolean) => {
+    setHearLive(live);
+    const next: TrackId = live ? "augmented" : s.selectedSource;
+    const mine = s.transport.track === "augmented" || s.transport.track === s.selectedSource;
+    if (s.transport.playing && mine && s.transport.track !== next) s.toggle(next);
+  };
 
   return (
-    <section>
-      <StageHead stage="enhance" status={s.augStatus}>
+    <section aria-labelledby="augment-title">
+      <SectionHead
+        id="augment-title"
+        number="03"
+        title="Augment & Effects"
+        blurb="Shape the voice and hear every change live."
+        status={s.augStatus}
+      >
         <Segmented
           label="Audio to augment"
           value={s.selectedSource}
@@ -626,7 +692,7 @@ function Enhance({ s }: { s: StudioState }) {
             { id: "cleaned", label: "Cleaned", disabled: !s.cleaned },
           ]}
         />
-      </StageHead>
+      </SectionHead>
 
       <div className="panel p-5">
         <WaveBlock
@@ -660,23 +726,37 @@ function Enhance({ s }: { s: StudioState }) {
             Reset
           </button>
         </div>
+
+        <div className="mt-4 border-t border-border pt-4">
+          <Transport
+            label={hearLive ? "augmented audio" : "dry audio"}
+            track={track}
+            buffer={buffer}
+            s={s}
+            actions={
+              <DownloadButton
+                label="Download augmented audio"
+                busy={s.exporting === "augmented"}
+                disabled={!s.augSource || s.augBusy || s.exporting !== null}
+                onClick={() => void s.download("augmented")}
+              />
+            }
+          >
+            <Segmented
+              label="Listen to"
+              value={hearLive ? "live" : "dry"}
+              onChange={(id) => listenTo(id === "live")}
+              options={[
+                { id: "dry", label: "Dry" },
+                { id: "live", label: "Augmented" },
+              ]}
+            />
+          </Transport>
+        </div>
       </div>
 
-      <Segmented
-        label="Controls"
-        className="mt-5 flex w-full lg:hidden"
-        value={module}
-        onChange={setModule}
-        options={[
-          { id: "tone", label: "Tone" },
-          { id: "voice", label: "Voice" },
-          { id: "dynamics", label: "Dynamics" },
-          { id: "space", label: "Space" },
-        ]}
-      />
-
-      <div className="mt-3 grid gap-5 lg:mt-5 lg:grid-cols-2">
-        <ModuleCard id="tone" open={module} title="Tone · 10-band equaliser">
+      <div className="mt-5 grid gap-5 md:grid-cols-2">
+        <Module title="Tone · 10-band equaliser">
           <div className="grid grid-cols-10 gap-0.5 sm:gap-2">
             {EQ_BANDS.map((band) => (
               <EqFader
@@ -688,9 +768,9 @@ function Enhance({ s }: { s: StudioState }) {
               />
             ))}
           </div>
-        </ModuleCard>
+        </Module>
 
-        <ModuleCard id="voice" open={module} title="Voice">
+        <Module title="Voice">
           <div className="grid gap-4">
             <Dial
               label="Pitch"
@@ -725,9 +805,9 @@ function Enhance({ s }: { s: StudioState }) {
               onChange={(x) => s.set("chorus", x)}
             />
           </div>
-        </ModuleCard>
+        </Module>
 
-        <ModuleCard id="dynamics" open={module} title="Dynamics">
+        <Module title="Dynamics">
           <div className="grid gap-4">
             <Dial
               label="Compressor"
@@ -753,9 +833,9 @@ function Enhance({ s }: { s: StudioState }) {
               onChange={(x) => s.set("output", x)}
             />
           </div>
-        </ModuleCard>
+        </Module>
 
-        <ModuleCard id="space" open={module} title="Space">
+        <Module title="Space">
           <div className="grid gap-4 sm:grid-cols-2 sm:gap-x-6">
             <Dial
               label="Reverb"
@@ -797,138 +877,8 @@ function Enhance({ s }: { s: StudioState }) {
               onChange={(x) => s.set("delayFeedback", x)}
             />
           </div>
-        </ModuleCard>
+        </Module>
       </div>
     </section>
-  );
-}
-
-/* ── Transport dock ─────────────────────────────────────────────────── */
-
-function Dock(p: {
-  s: StudioState;
-  stage: Stage;
-  monitor: TrackId;
-  buffer: AudioBuffer | null;
-  playing: boolean;
-  hearCleaned: boolean;
-  hearLive: boolean;
-  onHearCleaned: (on: boolean) => void;
-  onHearLive: (on: boolean) => void;
-  onStage: (stage: Stage) => void;
-}) {
-  const { s, stage, monitor, buffer } = p;
-  const timeRef = useRef<HTMLSpanElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-  const { getPosition } = s;
-  const active = s.transport.track === monitor;
-  const duration = buffer?.duration ?? 0;
-
-  // Readout and progress line are written straight to the DOM every frame.
-  useEffect(() => {
-    let frame = 0;
-    const tick = () => {
-      const pos = active ? Math.min(duration, getPosition()) : 0;
-      if (timeRef.current) timeRef.current.textContent = clock(pos);
-      if (barRef.current)
-        barRef.current.style.width = `${duration > 0 ? (pos / duration) * 100 : 0}%`;
-      if (active) frame = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [active, duration, getPosition]);
-
-  const exportKind = stage === "arrange" ? "edited" : stage === "clean" ? "cleaned" : "augmented";
-  const canExport =
-    s.exporting === null &&
-    (stage === "arrange"
-      ? s.mix !== null
-      : stage === "clean"
-        ? s.cleaned !== null
-        : s.augSource !== null && !s.augBusy);
-  const exportLabel = s.exporting !== null ? "Exporting…" : "Export MP3";
-
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur">
-      <div className="h-0.5 bg-transparent">
-        <div ref={barRef} className="h-full bg-primary" style={{ width: 0 }} />
-      </div>
-      <div
-        className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6"
-        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
-      >
-        <button
-          onClick={() => s.toggle(monitor)}
-          disabled={!buffer}
-          aria-label={p.playing ? "Pause" : "Play"}
-          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition active:scale-95 disabled:opacity-30"
-        >
-          <Icon name={p.playing ? "pause" : "play"} size={22} />
-        </button>
-
-        <div className="min-w-[5.5rem] font-mono text-sm tabular-nums leading-tight">
-          <span ref={timeRef}>0:00.0</span>
-          <span className="block text-[11px] text-muted-foreground">of {clock(duration)}</span>
-        </div>
-
-        {stage === "arrange" && <span className="label-caps hidden sm:block">Timeline mix</span>}
-        {stage === "clean" && (
-          <Segmented
-            label="Listen to"
-            value={p.hearCleaned && s.cleaned ? "after" : "before"}
-            onChange={(id) => p.onHearCleaned(id === "after")}
-            options={[
-              { id: "before", label: "Before" },
-              { id: "after", label: "After", disabled: !s.cleaned },
-            ]}
-          />
-        )}
-        {stage === "enhance" && (
-          <Segmented
-            label="Listen to"
-            value={p.hearLive ? "live" : "dry"}
-            onChange={(id) => p.onHearLive(id === "live")}
-            options={[
-              { id: "dry", label: "Dry" },
-              { id: "live", label: "Augmented" },
-            ]}
-          />
-        )}
-
-        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-          {stage === "enhance" ? (
-            <button
-              className={`${button.primary} flex-1 sm:flex-none`}
-              disabled={!canExport}
-              onClick={() => void s.download("augmented")}
-            >
-              <Icon name="download" /> {exportLabel}
-            </button>
-          ) : (
-            <>
-              <button
-                className={`${button.quiet} h-11`}
-                disabled={!canExport}
-                onClick={() => void s.download(exportKind)}
-                title={
-                  stage === "arrange"
-                    ? "Export the timeline as MP3"
-                    : "Export the cleaned audio as MP3"
-                }
-              >
-                <Icon name="download" /> <span>{exportLabel}</span>
-              </button>
-              <button
-                className={`${button.primary} flex-1 sm:flex-none`}
-                disabled={stage === "arrange" && s.mix === null}
-                onClick={() => p.onStage(stage === "arrange" ? "clean" : "enhance")}
-              >
-                Continue <Icon name="arrow" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
