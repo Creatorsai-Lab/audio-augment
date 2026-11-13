@@ -1,18 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource-variable/instrument-sans/wght.css";
-@import "@fontsource-variable/jetbrains-mono/wght.css";
-@import "@fontsource/instrument-serif/400-italic.css";
 @source "../src";
-
-/*
- * Design tokens.
- *
- * :root holds the actual values. The @theme inline block maps them to Tailwind
- * utilities (--color-primary -> bg-primary, text-primary, ...).
- *
- * To add a colour: define it in :root, then register it in @theme inline as
- * --color-<name>: var(--<name>).
- */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -46,14 +33,12 @@
   --primary: #ff7a45; /* the one signal colour: actions, waveforms, values */
   --primary-foreground: #160f0b;
   --secondary: #34363c; /* unfilled slider tracks */
-  --ring: #ff7a45;
+  --ring: #f88a5e;
   --trim: #ffb53c; /* trim handles on timeline clips */
   --done: #57d6a8; /* completed-stage ticks */
   --grid-line: rgb(255 255 255 / 0.045);
   --lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -24px rgb(0 0 0 / 0.8);
-
-  /* Reserve the scrollbar's space so switching stages never shifts the layout. */
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable;  /* Reserve the scrollbar's spac */
 }
 
 @layer base {
@@ -67,7 +52,6 @@
     background: var(--background);
     color: var(--foreground);
     font-family:
-      "Instrument Sans Variable",
       ui-sans-serif,
       system-ui,
       -apple-system,
@@ -96,7 +80,7 @@
 
 /* Serif italic accent used in the wordmark and headlines. */
 .serif-accent {
-  font-family: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-style: italic;
   font-weight: 400;
   letter-spacing: -0.01em;

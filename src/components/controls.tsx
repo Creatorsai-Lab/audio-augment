@@ -83,7 +83,7 @@ export function Segmented<T extends string>(p: {
             onClick={() => p.onChange(o.id)}
             className={`h-8 flex-1 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition disabled:opacity-35 ${
               on
-                ? "bg-card text-foreground shadow-sm"
+                ? "bg-card text-ring shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

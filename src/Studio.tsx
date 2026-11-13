@@ -132,13 +132,11 @@ function SectionHead(p: {
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0">
-        <p className="font-mono text-xs text-primary">{p.number}</p>
-        <h2 id={p.id} className="stage-title mt-1.5">
-          {p.title}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{p.blurb}</p>
-      </div>
+  <div className="flex flex-wrap items-baseline gap-x-2">
+  <p className="font-mono stage-title text-lg text-primary">{p.number}</p>
+  <h2 id={p.id} className="stage-title text-lg">{p.title}</h2>
+  <p className="mt-1 w-full text-sm text-muted-foreground">{p.blurb}</p>
+</div>
       {p.children}
       {p.status && (
         <p className="w-full font-mono text-xs text-muted-foreground" aria-live="polite">
@@ -237,19 +235,6 @@ function WaveBlock(p: { label: string; note?: string; children: ReactNode }) {
 
 /* ── Upload ─────────────────────────────────────────────────────────── */
 
-// A fixed, hand-shaped envelope: decorative, and identical on every visit.
-const BARS = Array.from({ length: 72 }, (_, i) => {
-  const t = i / 71;
-  const envelope = Math.sin(Math.PI * t) ** 0.7;
-  const detail = 0.55 + 0.45 * Math.sin(i * 1.7) * Math.sin(i * 0.37 + 1);
-  return Math.max(0.06, envelope * Math.abs(detail));
-});
-
-/**
- * The upload box at the top of the page. Large while there is no recording;
- * once one is loaded it shrinks to a single row that names the file and offers
- * to replace it. Choosing or dropping a file here always starts a new project.
- */
 function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined) => void }) {
   // Describe the uploaded file itself; the timeline may since have reshaped it.
   const loaded = s.tracks.find((t) => t.name === s.fileName)?.source ?? s.original;
@@ -300,34 +285,21 @@ function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined
   }
 
   return (
-    <section aria-label="Upload" {...drop}>
-      <label className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border px-5 py-10 text-center transition hover:border-primary/70 sm:py-12">
+    <section className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border px-5 py-5 text-center transition hover:border-primary/70 sm:py-12" aria-label="Upload" {...drop}>
         <div className="grid-paper pointer-events-none absolute inset-0" />
         <div className="relative">
-          <div className="flex h-14 items-end justify-center gap-[3px]" aria-hidden="true">
-            {BARS.map((h, i) => (
-              <span
-                key={i}
-                className={`w-[3px] shrink-0 rounded-full bg-primary/80 group-hover:bg-primary ${i % 2 ? "hidden sm:block" : ""}`}
-                style={{ height: `${h * 100}%`, opacity: 0.35 + h * 0.65 }}
-              />
-            ))}
-          </div>
+
           <p className="mt-6 text-lg font-semibold tracking-tight sm:text-xl">
-            Start with a <span className="serif-accent text-[1.3em]">recording</span>
-          </p>
-          <p className="mx-auto mt-1.5 max-w-sm text-[13px] text-muted-foreground">
-            Everything runs on your device. Your audio is never uploaded.
+            Start with a <span className="serif-accent text-[1.2em]"> Audio</span>
           </p>
           <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
             <Icon name="upload" /> Upload audio
           </span>
           <p className="mt-3 text-[13px] text-muted-foreground" aria-live="polite">
-            {notice || "or drop a file anywhere · MP3 or WAV"}
+            {notice || "OR drag drop a file anywhere · MP3 or WAV"}
           </p>
         </div>
         {input}
-      </label>
     </section>
   );
 }
@@ -377,7 +349,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
         id="trim-title"
         number="01"
         title="Trim"
-        blurb="Trim, repeat, re-time and join clips."
+        blurb="Trim, repeat, change speed and join clips."
         status={s.editStatus}
       />
       <input
@@ -392,7 +364,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
       />
 
       <div className="panel overflow-hidden">
-        <div className="flex items-center gap-0.5 border-b border-border p-1.5">
+        <div className="flex items-center gap-0.5 p-1.5">
           <Tool icon="plus" label="Add audio" onClick={() => addRef.current?.click()} />
           <span className="mx-1 h-5 w-px bg-border" />
           <Tool icon="copy" label="Duplicate" onClick={s.duplicateTrack} disabled={noTrack} />
@@ -439,7 +411,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
         <div className="p-3 sm:p-4">
           {s.tracks.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Upload a recording above to start trimming.
+              Upload an audio above to start trimming.
             </p>
           ) : (
             <Timeline
@@ -489,14 +461,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
           />
         </div>
       </div>
-
-      <ul className="mt-4 grid gap-x-6 gap-y-1 text-[13px] text-muted-foreground sm:grid-cols-3">
-        <li>
-          <span className="font-mono text-trim">▌</span> Drag a clip&rsquo;s edge to trim
-        </li>
-        <li>Drag a clip to move it · edges snap together</li>
-        <li>Tap the time scale to move the playhead</li>
-      </ul>
+      <p className="text-sm my-3 text-accent"><b>Usage:</b> Pull the audio track edge yellow bar to trim • Drag the track to move or reposition it • Tap the time scale to move the playhead</p>
     </section>
   );
 }
@@ -695,10 +660,10 @@ function Augment({ s }: { s: StudioState }) {
       </SectionHead>
 
       <div className="panel p-5">
-        <WaveBlock
+        {/* <WaveBlock
           label={s.augFresh ? "Rendered result" : "Preview"}
           note={s.augFresh ? "" : "Press play: controls change the sound as you move them"}
-        >
+        > */}
           <Waveform
             buffer={s.augmented?.buffer ?? s.augSource}
             dimmed={!s.augFresh}
@@ -706,7 +671,7 @@ function Augment({ s }: { s: StudioState }) {
             getPosition={s.getPosition}
             onSeek={(t) => s.seek("augmented", t)}
           />
-        </WaveBlock>
+
 
         <div className="no-scrollbar -mx-1 mt-4 flex items-center gap-2 overflow-x-auto px-1 pb-1">
           <span className="label-caps shrink-0 pr-1">Presets</span>
@@ -747,7 +712,7 @@ function Augment({ s }: { s: StudioState }) {
               value={hearLive ? "live" : "dry"}
               onChange={(id) => listenTo(id === "live")}
               options={[
-                { id: "dry", label: "Dry" },
+                { id: "dry", label: "Original" },
                 { id: "live", label: "Augmented" },
               ]}
             />
