@@ -65,8 +65,9 @@ Full usage documentation — every control explained, workflows, and tips:
 ## Run locally (desktop app)
 
 **Requirements:** Node.js 20+, npm
-
+first fork the repository
 ```bash
+# your forked repo
 git clone https://github.com/your-username/audio-augment.git
 cd audio-augment
 npm install

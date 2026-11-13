@@ -4,6 +4,8 @@ import { fft } from "./fft";
 
 const N = 1024;
 const HOP = 256;
+/** Upper bound on frames kept for the noise profile, so memory stays flat for long files. */
+const MAX_PROFILE_FRAMES = 2048;
 
 function hann(n: number) {
   const w = new Float32Array(n);
@@ -23,54 +25,65 @@ export type DenoiseOptions = {
 /**
  * STFT spectral gating: estimate a per-bin noise floor from the quietest
  * frames, then subtract it with smoothed spectral gain. Pure DSP, no ML models.
+ *
+ * Runs in two streaming passes (profile, then filter) so the only per-file
+ * allocations are the output and one number per frame — the spectra themselves
+ * are never stored.
  */
 export function denoiseChannel(
   input: Float32Array,
   sampleRate: number,
   opts: DenoiseOptions,
+  onProgress?: (fraction: number) => void,
 ): Float32Array<ArrayBuffer> {
   const win = hann(N);
   const frames = Math.max(1, Math.ceil((input.length + N) / HOP));
   const half = N / 2 + 1;
-  const mags: Float32Array[] = [];
-  const phases: Float32Array[] = [];
-  const energies: number[] = [];
-
   const re = new Float32Array(N);
   const im = new Float32Array(N);
+  const reportEvery = Math.max(1, Math.floor(frames / 50));
 
-  for (let f = 0; f < frames; f++) {
+  const analyse = (f: number) => {
     const start = f * HOP - N / 2;
-    re.fill(0);
     im.fill(0);
     for (let i = 0; i < N; i++) {
       const idx = start + i;
       re[i] = idx >= 0 && idx < input.length ? input[idx] * win[i] : 0;
     }
     fft(re, im);
-    const m = new Float32Array(half);
-    const p = new Float32Array(half);
+  };
+
+  // ── Pass 1: frame energies + magnitudes of an evenly spaced subset of frames.
+  const energies = new Float64Array(frames);
+  const stride = Math.max(1, Math.ceil(frames / MAX_PROFILE_FRAMES));
+  const profileFrames = Math.ceil(frames / stride);
+  const profile = new Float32Array(profileFrames * half);
+
+  for (let f = 0; f < frames; f++) {
+    analyse(f);
+    const keep = f % stride === 0;
+    const row = (f / stride) * half;
     let e = 0;
     for (let k = 0; k < half; k++) {
-      m[k] = Math.hypot(re[k], im[k]);
-      p[k] = Math.atan2(im[k], re[k]);
-      e += m[k] * m[k];
+      const p = re[k] * re[k] + im[k] * im[k];
+      e += p;
+      if (keep) profile[row + k] = Math.sqrt(p);
     }
-    mags.push(m);
-    phases.push(p);
-    energies.push(e);
+    energies[f] = e;
+    if (onProgress && f % reportEvery === 0) onProgress((0.4 * f) / frames);
   }
 
-  // Noise floor per bin = low percentile across frames.
+  // Noise floor per bin = low percentile across the profiled frames.
   const noise = new Float32Array(half);
-  const scratch = new Float32Array(frames);
+  const scratch = new Float32Array(profileFrames);
+  const pick = Math.floor(profileFrames * 0.15);
   for (let k = 0; k < half; k++) {
-    for (let f = 0; f < frames; f++) scratch[f] = mags[f][k];
-    const sorted = Float32Array.from(scratch).sort();
-    noise[k] = sorted[Math.floor(frames * 0.15)];
+    for (let f = 0; f < profileFrames; f++) scratch[f] = profile[f * half + k];
+    scratch.sort();
+    noise[k] = scratch[pick];
   }
 
-  const sortedE = [...energies].sort((a, b) => a - b);
+  const sortedE = Float64Array.from(energies).sort();
   const quiet = sortedE[Math.floor(frames * 0.35)] || 0;
   const loud = sortedE[Math.floor(frames * 0.9)] || 1;
 
@@ -78,13 +91,12 @@ export function denoiseChannel(
   const floorGain = 0.08 * (1 - opts.amount) + 0.02;
   const hissBin = Math.floor((4000 / (sampleRate / 2)) * half);
 
+  // ── Pass 2: re-analyse each frame, apply the gain, overlap-add.
   const out = new Float32Array(input.length);
-  const norm = new Float32Array(input.length);
   const prevGain = new Float32Array(half).fill(1);
 
   for (let f = 0; f < frames; f++) {
-    const m = mags[f];
-    const p = phases[f];
+    analyse(f);
     // frame-level gate for breaths / room tone
     const level = (energies[f] - quiet) / (loud - quiet + 1e-9);
     const frameGain =
@@ -92,18 +104,18 @@ export function denoiseChannel(
         ? Math.min(1, Math.max(floorGain, 0.25 + level * 1.6)) ** (opts.breath * 2)
         : 1;
 
-    re.fill(0);
-    im.fill(0);
     for (let k = 0; k < half; k++) {
-      const clean = Math.max(0, m[k] - over * noise[k]);
-      let g = m[k] > 1e-9 ? clean / m[k] : 0;
+      const m = Math.hypot(re[k], im[k]);
+      const clean = Math.max(0, m - over * noise[k]);
+      let g = m > 1e-9 ? clean / m : 0;
       g = Math.max(g, floorGain);
-      if (k >= hissBin && m[k] < noise[k] * (2 + 6 * opts.hiss)) g *= 1 - 0.9 * opts.hiss;
+      if (k >= hissBin && m < noise[k] * (2 + 6 * opts.hiss)) g *= 1 - 0.9 * opts.hiss;
       g = 0.6 * g + 0.4 * prevGain[k]; // temporal smoothing avoids musical noise
       prevGain[k] = g;
-      const mag = m[k] * g * frameGain;
-      re[k] = mag * Math.cos(p[k]);
-      im[k] = mag * Math.sin(p[k]);
+      // Scaling the complex bin keeps its phase, so no atan2/cos/sin round trip.
+      const scale = g * frameGain;
+      re[k] *= scale;
+      im[k] *= scale;
       if (k > 0 && k < N / 2) {
         re[N - k] = re[k];
         im[N - k] = -im[k];
@@ -116,10 +128,29 @@ export function denoiseChannel(
       const idx = start + i;
       if (idx < 0 || idx >= out.length) continue;
       out[idx] += re[i] * win[i];
-      norm[idx] += win[i] * win[i];
     }
+    if (onProgress && f % reportEvery === 0) onProgress(0.4 + (0.6 * f) / frames);
   }
 
-  for (let i = 0; i < out.length; i++) out[i] = norm[i] > 1e-6 ? out[i] / norm[i] : out[i];
+  // Window-overlap normalisation. Away from the start every sample is covered
+  // by the same set of window positions, so the sum of squared windows only
+  // depends on (index mod HOP); the first N samples miss the frames that would
+  // start before -N/2 and are computed directly.
+  const steady = new Float32Array(HOP);
+  for (let r = 0; r < HOP; r++) {
+    for (let j = r; j < N; j += HOP) steady[r] += win[j] * win[j];
+  }
+  const edge = Math.min(N, out.length);
+  for (let i = 0; i < edge; i++) {
+    let sum = 0;
+    for (let start = -N / 2; start <= i; start += HOP) {
+      const j = i - start;
+      if (j < N) sum += win[j] * win[j];
+    }
+    if (sum > 1e-6) out[i] /= sum;
+  }
+  for (let i = edge; i < out.length; i++) out[i] /= steady[i % HOP];
+
+  onProgress?.(1);
   return out;
 }

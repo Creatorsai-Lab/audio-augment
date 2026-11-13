@@ -42,7 +42,7 @@ You have two ways to load a file:
 | Method | How |
 |---|---|
 | **Upload button** | Click **+ Upload Audio** and pick a `.mp3` or `.wav` file from your device |
-| **Drag & drop** | Drag a file anywhere onto the noise removal section and release |
+| **Drag & drop** | Drag a file onto the upload box or the noise removal section and release |
 
 Once loaded, the status bar shows the **filename**, **duration**, **sample rate** and **channel count** — confirming the file decoded successfully.
 
@@ -61,7 +61,7 @@ The first stage analyses and removes unwanted background noise from the raw audi
 | **Noise reduction** | Reduces broadband background noise — fans, room hum, recording floor | 0.6 |
 | **Hissing reduction** | Attenuates high-frequency tape hiss and mic self-noise | 0.5 |
 | **Breath reduction** | Suppresses breath sounds and mouth noise between words | 0.35 |
-| **Sibilance reduction** | De-esses harsh `s` and `sh` sounds in speech | 0.3 |
+| **Sibilance reduction** | De-esses harsh `s` and `sh` sounds in speech. Applied when you click **Remove Noise** | 0.3 |
 
 All knobs run from **0** (off) to **1** (maximum). Turn up only what you need — over-processing can make voices sound thin or unnatural.
 
@@ -80,7 +80,11 @@ You can click **▶ Play original** and **▶ Play cleaned** to compare before a
 
 The second stage applies creative effects to your audio. You can augment the **original** (unprocessed) audio or the **cleaned** audio from Stage 1 — choose using the **Source** toggle at the top of the section.
 
-After adjusting any knobs, click **Apply Augmentation** to render the result. The process runs offline using the Web Audio API.
+Click **▶ Play augmented (live)** to hear the effects in real time: every knob and fader changes the sound as you move it, with no render step. Pitch and harmony take a moment to update after you release the knob.
+
+Click any waveform to seek. Switching between the original, cleaned and augmented players while playing continues from the same position, so you can A/B them.
+
+**Apply Augmentation** renders the result so its waveform is shown; **Download augmented audio** renders automatically if needed.
 
 ---
 
@@ -160,7 +164,7 @@ Adds a rhythmic echo effect with feedback.
 |---|---|---|
 | **Mix** | 0 – 1 | How much echo is blended into the signal |
 | **Time** | 0.02 – 1.5 seconds | The gap between the original signal and each echo repeat |
-| **Feedback** | 0 – 0.85 | How much of each echo feeds back into itself. Higher values create longer, more prominent echo trails. Kept below 0.85 to prevent runaway feedback. |
+| **Feedback** | 0 – 1 | How much of each echo feeds back into itself. Higher values create longer, more prominent echo trails. The full knob range is scaled internally so the echo always dies away. |
 
 ---
 

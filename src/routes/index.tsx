@@ -2,14 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "../components/Panel";
 import { Knob } from "../components/Knob";
+import { Waveform } from "../components/Waveform";
 import {
+  augmentationKey,
   defaultSettings,
   EQ_BANDS,
+  PitchCache,
   renderAugmented,
   renderCleaned,
+  type RackAudio,
   type Settings,
 } from "../lib/audio/process";
 import { encodeMp3 } from "../lib/audio/mp3";
+import { Player, type TrackAudio, type TrackId } from "../lib/audio/player";
+import { isAbort } from "../lib/audio/worker-client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,37 +37,16 @@ export const Route = createFileRoute("/")({
   component: Studio,
 });
 
-/* ── Presets (augmentation-only, no noise keys) ── */
+/* ── Presets (augmentation-only, no cleanup keys) ── */
 const PRESETS: Record<string, Partial<Settings>> = {
-  Podcast: { compressor: 0.5, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2, deEss: 0.4 },
+  Podcast: { compressor: 0.5, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2 },
   Educational: { compressor: 0.4, eq125: -2, eq250: 1, eq500: 1, eq1k: 3, eq2k: 4, eq4k: 3, eq8k: 1 },
-  Cinematic: { reverb: 0.28, reverbSize: 3.2, eq63: 3, eq125: 2, eq250: 1, pitch: -2, saturation: 0.2 },
   Gaming: { compressor: 0.6, eq31: 4, eq63: 3, eq250: -1, eq1k: 2, eq4k: 4, eq8k: 3, eq16k: 2, saturation: 0.15 },
+  Best: { compressor: 0.4, saturation: 0.1, eq125: 2, eq250: 1, eq1k: 2, eq4k: 3, eq8k: 2, output: 1 },
 };
 
-/* ── Waveform renderer ── */
-function drawWave(canvas: HTMLCanvasElement | null, buffer: AudioBuffer | null, color: string) {
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const w = (canvas.width = canvas.clientWidth * 2);
-  const h = (canvas.height = canvas.clientHeight * 2);
-  ctx.clearRect(0, 0, w, h);
-  if (!buffer) return;
-  const data = buffer.getChannelData(0);
-  const step = Math.max(1, Math.floor(data.length / w));
-  ctx.fillStyle = color;
-  for (let x = 0; x < w; x++) {
-    let min = 1;
-    let max = -1;
-    for (let i = 0; i < step; i++) {
-      const v = data[x * step + i] ?? 0;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    ctx.fillRect(x, ((1 + min) * h) / 2, 1, Math.max(2, ((max - min) * h) / 2));
-  }
-}
+const percent = (fraction: number) => `${Math.round(fraction * 100)}%`;
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /* ══════════════════════════════════════════════════════════════════════ */
 
@@ -71,161 +56,247 @@ export function Studio() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [original, setOriginal] = useState<AudioBuffer | null>(null);
   const [cleaned, setCleaned] = useState<AudioBuffer | null>(null);
-  const [augmented, setAugmented] = useState<AudioBuffer | null>(null);
-  const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("cleaned");
+  const [selectedSource, setSelectedSource] = useState<"original" | "cleaned">("original");
+  /** Last offline render, and what it was rendered from. */
+  const [augmented, setAugmented] = useState<{
+    buffer: AudioBuffer;
+    source: AudioBuffer;
+    key: string;
+  } | null>(null);
+  /** What the live preview plays: the source after pitch shifting, plus the harmony voice. */
+  const [rackAudio, setRackAudio] = useState<{ source: AudioBuffer; audio: RackAudio } | null>(
+    null,
+  );
 
   const [noiseStatus, setNoiseStatus] = useState<string>("");
   const [augStatus, setAugStatus] = useState<string>("");
   const [noiseBusy, setNoiseBusy] = useState(false);
   const [augBusy, setAugBusy] = useState(false);
-  const [playing, setPlaying] = useState<"none" | "original" | "cleaned" | "augmented">("none");
+  const [exporting, setExporting] = useState<"cleaned" | "augmented" | null>(null);
+  const [transport, setTransport] = useState<{ track: TrackId | null; playing: boolean }>({
+    track: null,
+    playing: false,
+  });
 
-  /* ── Refs ── */
-  const inRef = useRef<HTMLCanvasElement>(null);
-  const outRef = useRef<HTMLCanvasElement>(null);
-  const augCanvasRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<{ ctx: AudioContext; node: AudioBufferSourceNode } | null>(null);
-  const operationRef = useRef(0);
+  const [player] = useState(() => new Player());
+  const [pitchCache] = useState(() => new PitchCache());
+  const loadRef = useRef(0);
+  const noiseJob = useRef<AbortController | null>(null);
+  const augJob = useRef<AbortController | null>(null);
 
   /* ── Settings helper ── */
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) =>
     setSettings((s) => ({ ...s, [k]: v }));
 
-  /* ── Waveform draws ── */
-  useEffect(() => drawWave(inRef.current, original, "oklch(0.55 0.02 250)"), [original]);
-  useEffect(() => drawWave(outRef.current, cleaned, "#c75d3a"), [cleaned]);
-  useEffect(() => drawWave(augCanvasRef.current, augmented, "#c75d3a"), [augmented]);
+  /* ── Derived ── */
+  const augSource = selectedSource === "original" ? original : cleaned;
+  const liveAudio = rackAudio && rackAudio.source === augSource ? rackAudio.audio : null;
+  const augFresh =
+    !!augmented && augmented.source === augSource && augmented.key === augmentationKey(settings);
 
-  /* ── Simple playback (no live effects — buffers are pre-rendered) ── */
-  const stop = useCallback(() => {
-    const player = playerRef.current;
-    playerRef.current = null;
-    if (player) {
-      try {
-        player.node.stop();
-      } catch {
-        /* source may have ended naturally */
-      }
-      void player.ctx.close();
-    }
-    setPlaying("none");
-  }, []);
-
-  const playBuffer = (
-    buffer: AudioBuffer | null,
-    which: "original" | "cleaned" | "augmented",
-  ) => {
-    stop();
-    if (!buffer) return;
-    const ctx = new AudioContext();
-    const node = ctx.createBufferSource();
-    node.buffer = buffer;
-    node.connect(ctx.destination);
-    node.onended = () => {
-      if (playerRef.current?.node !== node) return;
-      playerRef.current = null;
-      void ctx.close();
-      setPlaying("none");
-    };
-    node.start();
-    playerRef.current = { ctx, node };
-    setPlaying(which);
+  const audioFor = (track: TrackId): TrackAudio | null => {
+    if (track === "augmented") return liveAudio;
+    const main = track === "original" ? original : cleaned;
+    return main && { main };
   };
+
+  /* ── Transport ── */
+  useEffect(() => {
+    player.onChange = () => setTransport({ track: player.track, playing: player.playing });
+    return () => player.dispose();
+  }, [player]);
+
+  // The live rack follows every control as it moves.
+  useEffect(() => player.setSettings(settings), [player, settings]);
+
+  const getPosition = useCallback(() => player.position(), [player]);
+
+  const toggle = (track: TrackId) => {
+    if (transport.playing && transport.track === track) return player.pause();
+    const audio = audioFor(track);
+    if (audio) player.play(track, audio);
+  };
+
+  const seek = (track: TrackId, seconds: number) => {
+    const audio = audioFor(track);
+    if (audio) player.seek(seconds, track, audio);
+  };
+
+  const playLabel = (track: TrackId, idle: string) =>
+    transport.playing && transport.track === track ? "⏸ Pause" : idle;
+
+  /* ── Live preview audio: pitch / harmony are pre-shifted in a worker ── */
+  const { pitch, harmonizerInterval } = settings;
+  const harmonise = settings.harmonizer > 0;
+  useEffect(() => {
+    if (!augSource) return setRackAudio(null);
+    const voice = { pitch, harmonizer: harmonise ? 1 : 0, harmonizerInterval };
+    const ready = pitchCache.peek(augSource, voice);
+    if (ready) return setRackAudio({ source: augSource, audio: ready });
+
+    // Wait for the knob to settle; the previous audio keeps playing meanwhile.
+    const job = new AbortController();
+    const timer = setTimeout(() => {
+      setAugStatus("Updating pitch… 0%");
+      pitchCache
+        .prepare(augSource, voice, {
+          signal: job.signal,
+          onProgress: (f) => setAugStatus(`Updating pitch… ${percent(f)}`),
+        })
+        .then((audio) => {
+          setRackAudio({ source: augSource, audio });
+          setAugStatus("");
+        })
+        .catch((err) => {
+          if (!isAbort(err)) setAugStatus("Pitch shift failed: " + message(err));
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      job.abort();
+    };
+  }, [augSource, pitch, harmonise, harmonizerInterval, pitchCache]);
+
+  // When the audio behind the current track is replaced (re-cleaned, new pitch,
+  // different source), swap it in at the playhead.
+  useEffect(() => {
+    const track = player.track;
+    if (!track) return;
+    const audio =
+      track === "augmented"
+        ? liveAudio
+        : track === "original"
+          ? original && { main: original }
+          : cleaned && { main: cleaned };
+    if (!audio || player.isCurrent(audio)) return;
+    if (player.playing) player.play(track, audio);
+    else player.seek(player.position(), track, audio);
+  }, [player, original, cleaned, liveAudio]);
 
   /* ── Load file — decode only, NO auto-cleaning ── */
   const loadFile = async (file: File) => {
-    const operation = ++operationRef.current;
-    stop();
+    const load = ++loadRef.current;
+    noiseJob.current?.abort();
+    noiseJob.current = null;
+    augJob.current?.abort();
+    augJob.current = null;
+    player.stop();
     setNoiseStatus("Decoding audio…");
     setNoiseBusy(true);
-    let ctx: AudioContext | null = null;
     try {
-      ctx = new AudioContext();
-      const buf = await ctx.decodeAudioData(await file.arrayBuffer());
-      if (operation !== operationRef.current) return;
+      const buf = await player.context().decodeAudioData(await file.arrayBuffer());
+      if (load !== loadRef.current) return;
+      pitchCache.clear();
       setOriginal(buf);
       setCleaned(null);
       setAugmented(null);
+      setSelectedSource("original");
       setFileName(file.name);
       setNoiseStatus(
         `${file.name} · ${buf.duration.toFixed(1)}s · ${buf.sampleRate} Hz · ${buf.numberOfChannels}ch`,
       );
       setAugStatus("");
     } catch {
-      if (operation === operationRef.current) {
+      if (load === loadRef.current) {
         setNoiseStatus("Could not decode that file. Try a standard .mp3 or .wav.");
       }
     } finally {
-      if (ctx) await ctx.close();
-      if (operation === operationRef.current) setNoiseBusy(false);
+      if (load === loadRef.current) setNoiseBusy(false);
     }
+  };
+
+  const dropFile = (e: React.DragEvent) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f) void loadFile(f);
   };
 
   /* ── Remove noise (Section 1) ── */
   const removeNoise = async () => {
     if (!original) return;
-    const operation = ++operationRef.current;
-    stop();
+    noiseJob.current?.abort();
+    const job = (noiseJob.current = new AbortController());
     setNoiseBusy(true);
-    setNoiseStatus("Removing noise…");
-    await new Promise((r) => setTimeout(r, 20));
+    setNoiseStatus("Removing noise… 0%");
     try {
-      const result = await renderCleaned(original, settings, (s) => setNoiseStatus(s + "…"));
-      if (operation === operationRef.current) {
-        setCleaned(result);
-        setAugmented(null);
-        setNoiseStatus("Noise removed successfully.");
-      }
+      const result = await renderCleaned(original, settings, {
+        signal: job.signal,
+        onProgress: (f) => setNoiseStatus(`Removing noise… ${percent(f)}`),
+      });
+      setCleaned(result);
+      setSelectedSource("cleaned");
+      setNoiseStatus("Noise removed successfully.");
     } catch (err) {
-      if (operation === operationRef.current) {
-        setNoiseStatus("Noise removal failed: " + (err as Error).message);
-      }
+      if (!isAbort(err)) setNoiseStatus("Noise removal failed: " + message(err));
     } finally {
-      if (operation === operationRef.current) setNoiseBusy(false);
+      if (noiseJob.current === job) {
+        noiseJob.current = null;
+        setNoiseBusy(false);
+      }
     }
   };
 
-  /* ── Apply augmentation (Section 2) ── */
-  const applyAugmentation = async () => {
-    const source = selectedSource === "original" ? original : cleaned;
-    if (!source) return;
-    const operation = ++operationRef.current;
-    stop();
+  /* ── Render augmentation (Section 2) — needed for the waveform and export only ── */
+  const renderAugmentation = async (): Promise<AudioBuffer | null> => {
+    if (!augSource) return null;
+    if (augFresh && augmented) return augmented.buffer;
+    augJob.current?.abort();
+    const job = (augJob.current = new AbortController());
+    const source = augSource;
+    const used = settings;
     setAugBusy(true);
-    setAugStatus("Applying augmentation…");
-    await new Promise((r) => setTimeout(r, 20));
+    setAugStatus("Preparing augmentation…");
     try {
-      const result = await renderAugmented(source, settings, (s) => setAugStatus(s + "…"));
-      if (operation === operationRef.current) {
-        setAugmented(result);
-        setAugStatus("Augmentation applied. Play or download below.");
-      }
-    } catch (err) {
-      if (operation === operationRef.current) {
-        setAugStatus("Augmentation failed: " + (err as Error).message);
-      }
+      const audio = await pitchCache.prepare(source, used, {
+        signal: job.signal,
+        onProgress: (f) => setAugStatus(`Shifting pitch… ${percent(f)}`),
+      });
+      setAugStatus("Applying effects…");
+      const buffer = await renderAugmented(audio, used);
+      if (job.signal.aborted) return null;
+      setAugmented({ buffer, source, key: augmentationKey(used) });
+      return buffer;
     } finally {
-      if (operation === operationRef.current) setAugBusy(false);
+      if (augJob.current === job) {
+        augJob.current = null;
+        setAugBusy(false);
+      }
+    }
+  };
+
+  const applyAugmentation = async () => {
+    try {
+      if (await renderAugmentation()) setAugStatus("Augmentation applied. Download it below.");
+    } catch (err) {
+      if (!isAbort(err)) setAugStatus("Augmentation failed: " + message(err));
     }
   };
 
   /* ── Download helper ── */
-  const download = (buffer: AudioBuffer | null, suffix: string) => {
-    if (!buffer) return;
+  const download = async (kind: "cleaned" | "augmented") => {
+    const setStatus = kind === "cleaned" ? setNoiseStatus : setAugStatus;
+    setExporting(kind);
     try {
-      const blob = encodeMp3(buffer);
+      const buffer = kind === "cleaned" ? cleaned : await renderAugmentation();
+      if (!buffer) return;
+      setStatus("Encoding MP3… 0%");
+      const blob = await encodeMp3(buffer, {
+        onProgress: (f) => setStatus(`Encoding MP3… ${percent(f)}`),
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = (fileName?.replace(/\.[^.]+$/, "") ?? "audio") + suffix + ".mp3";
+      a.download = `${fileName?.replace(/\.[^.]+$/, "") ?? "audio"}-${kind}.mp3`;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setAugStatus(`${suffix === "-augmented" ? "Augmented" : "Cleaned"} MP3 download started.`);
+      setStatus(`${kind === "augmented" ? "Augmented" : "Cleaned"} MP3 download started.`);
     } catch (err) {
-      setAugStatus(`Download failed: ${(err as Error).message}`);
+      if (!isAbort(err)) setStatus(`Download failed: ${message(err)}`);
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -306,7 +377,11 @@ export function Studio() {
       </header>
 
       {/* File upload */}
-      <div className="mb-5 flex items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-4 select-none">
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={dropFile}
+        className="mb-5 flex items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-4 select-none"
+      >
         <label className="cursor-pointer rounded-md border-2 border-primary px-4 py-2 text-sm font-bold text-primary transition-all duration-150 active:translate-y-1">
           + Upload Audio
           <input
@@ -316,22 +391,19 @@ export function Studio() {
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void loadFile(f);
+              e.target.value = ""; // allow re-picking the same file
             }}
           />
         </label>
         <span className="text-sm text-muted-foreground">
-          {noiseStatus || "OR drag and drop (MP3 and WAV only)."}
+          {noiseStatus || "OR drag and drop a file here (MP3 or WAV)."}
         </span>
       </div>
 
       {/*  SECTION 1 — NOISE & BACKGROUND REMOVAL                    */}
       <section
         onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          const f = e.dataTransfer.files[0];
-          if (f) void loadFile(f);
-        }}
+        onDrop={dropFile}
         className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
 
         {/* Noise settings */}
@@ -372,13 +444,19 @@ export function Studio() {
             <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
               Original Audio Preview
             </p>
-            <canvas ref={inRef} className="h-17 w-full rounded bg-secondary/60" />
+            <Waveform
+              buffer={original}
+              color="oklch(0.55 0.02 250)"
+              active={transport.track === "original"}
+              getPosition={getPosition}
+              onSeek={(t) => seek("original", t)}
+            />
             <button
               disabled={!original}
-              onClick={() => (playing === "original" ? stop() : playBuffer(original, "original"))}
+              onClick={() => toggle("original")}
               className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
             >
-              {playing === "original" ? "⏹ Stop" : "▶ Play original"}
+              {playLabel("original", "▶ Play original")}
             </button>
             <button
               disabled={!original || noiseBusy}
@@ -392,20 +470,26 @@ export function Studio() {
             <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
               Cleaned Audio Preview
             </p>
-            <canvas ref={outRef} className="h-17 w-full rounded bg-secondary/60" />
+            <Waveform
+              buffer={cleaned}
+              color="#c75d3a"
+              active={transport.track === "cleaned"}
+              getPosition={getPosition}
+              onSeek={(t) => seek("cleaned", t)}
+            />
             <button
               disabled={!cleaned}
-              onClick={() => (playing === "cleaned" ? stop() : playBuffer(cleaned, "cleaned"))}
+              onClick={() => toggle("cleaned")}
               className="m-3 rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
             >
-              {playing === "cleaned" ? "⏹ Stop" : "▶ Play cleaned"}
+              {playLabel("cleaned", "▶ Play cleaned")}
             </button>
             <button
-              disabled={!cleaned}
-              onClick={() => download(cleaned, "-cleaned")}
+              disabled={!cleaned || exporting !== null}
+              onClick={() => download("cleaned")}
               className="cursor-pointer rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-40 transition-all duration-150 active:translate-y-1"
             >
-              ⬇ Download cleaned audio
+              {exporting === "cleaned" ? "Exporting…" : "⬇ Download cleaned audio"}
             </button>
           </div>
         </div>
@@ -415,7 +499,7 @@ export function Studio() {
       <section className="mt-8 rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-panel)]">
         {/* Source picker */}
         <div className="flex flex-wrap items-center gap-4 border-b pb-4 align-center items-center justify-center">
-          <span className="text-sm text-muted-foreground">Source:</span>
+          <span className="text-sm text-muted-foreground">Choose Source to Augment:</span>
           <button
             disabled={!original}
             onClick={() => setSelectedSource("original")}
@@ -441,33 +525,43 @@ export function Studio() {
           <p className="mb-1 text-[12px] uppercase tracking-[0.2em] text-muted-foreground">
             Augmented Audio Preview
           </p>
-          <canvas ref={augCanvasRef} className="h-17 w-full rounded bg-secondary/60" />
+          <Waveform
+            buffer={augmented?.buffer ?? augSource}
+            color="#c75d3a"
+            dimmed={!augFresh}
+            active={transport.track === "augmented"}
+            getPosition={getPosition}
+            onSeek={(t) => seek("augmented", t)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {augFresh
+              ? "Waveform shows the rendered result."
+              : "Play to hear your settings live as you turn the controls. The waveform updates when you apply or download."}
+          </p>
         </div>
 
         {/* Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            disabled={!(selectedSource === "original" ? original : cleaned) || augBusy}
+            disabled={!augSource || augBusy}
             onClick={applyAugmentation}
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
           >
             {augBusy ? "Working…" : "Apply Augmentation"}
           </button>
           <button
-            disabled={!augmented}
-            onClick={() =>
-              playing === "augmented" ? stop() : playBuffer(augmented, "augmented")
-            }
+            disabled={!liveAudio}
+            onClick={() => toggle("augmented")}
             className="rounded-md border border-border px-4 py-2 text-sm disabled:opacity-40"
           >
-            {playing === "augmented" ? "⏹ Stop" : "▶ Play augmented"}
+            {playLabel("augmented", "▶ Play augmented (live)")}
           </button>
           <button
-            disabled={!augmented}
-            onClick={() => download(augmented, "-augmented")}
+            disabled={!augSource || augBusy || exporting !== null}
+            onClick={() => download("augmented")}
             className="rounded-md border cursor-pointer border-accent bg-accent px-4 py-2 text-sm font-bold text-accent-foreground disabled:opacity-40 transition-all duration-150 active:translate-y-1"
           >
-            ⬇ Download augmented audio
+            {exporting === "augmented" ? "Exporting…" : "⬇ Download augmented audio"}
           </button>
         </div>
 
@@ -493,7 +587,7 @@ export function Studio() {
                   "pitch", "harmonizer", "harmonizerInterval",
                   "chorus", "compressor", "saturation", "output",
                   "reverb", "reverbSize", "delay", "delayTime",
-                  "delayFeedback", "deEss",
+                  "delayFeedback",
                 ] as const;
                 setSettings((s) => {
                   const next = { ...s };
@@ -546,7 +640,7 @@ export function Studio() {
               value={settings.pitch}
               min={-12}
               max={12}
-              step={1}
+              step={0.2}
               unit=" st"
               onChange={(v) => set("pitch", v)}
             />
@@ -560,9 +654,9 @@ export function Studio() {
             <Knob
               label="Harmony interval"
               value={settings.harmonizerInterval}
-              min={-12}
-              max={12}
-              step={1}
+              min={-10}
+              max={10}
+              step={0.1}
               unit=" st"
               onChange={(v) => set("harmonizerInterval", v)}
             />
@@ -577,16 +671,16 @@ export function Studio() {
 
           <Panel title="Reverb" className="w-full md:w-[calc(33.33%-0.67rem)]">
             <Knob
-              label="Mix"
+              label="Reverb"
               value={settings.reverb}
               min={0}
               max={1}
               onChange={(v) => set("reverb", v)}
             />
             <Knob
-              label="Room size"
+              label="Reverb size"
               value={settings.reverbSize}
-              min={0.2}
+              min={0.1}
               max={6}
               step={0.1}
               unit=" s"
@@ -622,24 +716,25 @@ export function Studio() {
 
           <Panel title="Echo / delay" className="w-full md:w-[calc(33.33%-0.67rem)]">
             <Knob
-              label="Mix"
+              label="Delay"
               value={settings.delay}
               min={0}
               max={1}
               onChange={(v) => set("delay", v)}
             />
             <Knob
-              label="Time"
+              label="Delay Time"
               value={settings.delayTime}
               min={0.02}
               max={1.5}
               onChange={(v) => set("delayTime", v)}
             />
             <Knob
-              label="Feedback"
+              label="Delay Feedback"
               value={settings.delayFeedback}
               min={0}
-              max={0.85}
+              step={0.1}
+              max={1}
               onChange={(v) => set("delayFeedback", v)}
             />
           </Panel>
@@ -651,7 +746,7 @@ export function Studio() {
           What is Audio Augment Studio ?
         </h3>
         <p className="text-center leading-relaxed text-muted-foreground">
-          A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators and artiststo edit their audio at their fingertips without any hassle.
+          A very simple and fast audio editing studio that works with great precision. It has been designed and developed for content creators and artists to edit their audio at their fingertips without any hassle.
         </p>
 
         {/* Features Grid */}
@@ -661,9 +756,9 @@ export function Studio() {
               How does it work?
             </h3>
             <p className="text-sm text-muted-foreground">
-              The app uses advanced audio processing algorithms to enhance your
-              voice. Simply upload an audio file, select the desired effects, and
-              the app will process it in real-time.
+              Everything runs inside your browser using signal-processing
+              algorithms. Upload an audio file, press play, and hear each effect
+              change live as you turn the controls.
             </p>
           </div>
 
@@ -736,9 +831,9 @@ export function Studio() {
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                Your privacy is our priority. Audio processing happens securely, and
-                we immediately delete your raw and processed files from our servers
-                the moment your session ends.
+                No. Your audio never leaves your device. All processing happens
+                locally in your browser, nothing is uploaded to a server, and
+                your files are gone from memory as soon as you close the tab.
               </p>
             </div>
           </details>
@@ -755,9 +850,9 @@ export function Studio() {
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                Not at all! While a good mic always helps, our AI and enhancement
-                algorithms are explicitly trained to clean up noise and enrich audio
-                recorded on cheap headsets or phone mics.
+                Not at all. A good mic always helps, but the noise removal and
+                enhancement tools are designed to clean up and enrich audio
+                recorded on ordinary headsets or phone mics.
               </p>
             </div>
           </details>
@@ -774,9 +869,10 @@ export function Studio() {
             </summary>
             <div className="px-4 pb-4 text-sm text-muted-foreground">
               <p>
-                Yes. Our studio interface is fully responsive. You can record,
-                upload, process, and download audio directly from your smartphone's
-                web browser using our website or if you want you can download the web app for free.
+                Yes. The studio interface is fully responsive, so you can upload,
+                process, and download audio directly from your smartphone's web
+                browser. Very long recordings need more memory than some phones
+                have, so a computer works best for those.
               </p>
             </div>
           </details>
