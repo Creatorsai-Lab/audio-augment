@@ -67,7 +67,7 @@ function Header() {
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
         <a
           href="https://audio-augment.vercel.app/"
-          className="flex items-center gap-2.5"
+          className="flex shrink-0 items-center gap-2 sm:gap-2.5"
           aria-label="Audio Augment home"
         >
           <img
@@ -77,10 +77,12 @@ function Header() {
             height={28}
             className="h-7 w-7 object-contain"
           />
-          <span className="text-lg font-bold tracking-tight select-none">Audio Augment</span>
+          <span className="select-none whitespace-nowrap text-base font-bold tracking-tight sm:text-lg">
+            Audio Augment
+          </span>
         </a>
 
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-2 sm:gap-4">
           <a
             href="https://github.com/Creatorsai-Lab/audio-augment"
             target="_blank"
@@ -288,7 +290,7 @@ function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined
 
   return (
     <section aria-label="Upload" {...drop}>
-      <label className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-secondary px-5 text-center transition hover:border-primary/70 sm:py-6">
+      <label className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-secondary px-5 py-6 text-center transition hover:border-primary/70">
         <div className="relative">
           <p className="text-lg font-semibold tracking-tight sm:text-xl">
             Start with a <span className="serif-accent"> Audio</span>
@@ -438,7 +440,7 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
             actions={
               <>
                 <button
-                  className={`${button.quiet} h-11 w-full sm:w-auto`}
+                  className={`${button.quiet} h-11`}
                   disabled={s.sent}
                   onClick={s.sendToPipeline}
                   title="Use the timeline's result as the audio for noise removal and effects"
@@ -567,7 +569,7 @@ function RemoveNoise({ s }: { s: StudioState }) {
           </p>
         </div>
 
-        <div className="panel grid content-start gap-5 p-5">
+        <div className="panel grid content-start gap-5 p-5 max-lg:order-first">
           <WaveBlock label="Before">
             <Waveform
               buffer={s.original}

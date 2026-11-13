@@ -320,9 +320,30 @@ function ClipMenu(p: {
   );
 }
 
-/** Fixed zoom of the timeline: one labelled 10-second division is this many pixels wide. */
-const PIXELS_PER_SECOND = 16;
-const DIVISION_SECONDS = 10;
+/**
+ * Zoom of the timeline. It is fixed (never stretches to fit), but phones use a
+ * tighter scale so less sideways scrolling is needed: a label every 15 s at
+ * 10 px per second, against every 10 s at 16 px per second on wider screens.
+ */
+const SCALE = {
+  wide: { pixelsPerSecond: 16, division: 10 },
+  phone: { pixelsPerSecond: 10, division: 15 },
+} as const;
+const PHONE_QUERY = "(max-width: 639px)";
+
+/** True on phone-width screens; follows rotation and window resizing. */
+function usePhoneScreen(): boolean {
+  const [phone, setPhone] = useState(() => window.matchMedia(PHONE_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(PHONE_QUERY);
+    const update = () => setPhone(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return phone;
+}
+
 /** Empty timeline kept after the last clip, so there is always room to drag into. */
 const SPARE_SECONDS = 10;
 
@@ -357,6 +378,7 @@ export function Timeline(p: TimelineProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
+  const { pixelsPerSecond, division } = usePhoneScreen() ? SCALE.phone : SCALE.wide;
 
   // The scale never stretches: the timeline is as long as its content (plus
   // spare room), or the visible width if that is longer, and scrolls sideways.
@@ -369,7 +391,7 @@ export function Timeline(p: TimelineProps) {
     setVisibleWidth(el.clientWidth);
     return () => observer.disconnect();
   }, []);
-  const viewSeconds = Math.max(totalSeconds + SPARE_SECONDS, visibleWidth / PIXELS_PER_SECOND);
+  const viewSeconds = Math.max(totalSeconds + SPARE_SECONDS, visibleWidth / pixelsPerSecond);
   const view = viewSeconds * rate;
 
   // One playhead for the whole timeline, moved imperatively so playback never re-renders React.
@@ -377,14 +399,14 @@ export function Timeline(p: TimelineProps) {
     let frame = 0;
     const tick = () => {
       const pos = previewing ? Math.min(totalSeconds, getPosition()) : 0;
-      if (headRef.current) headRef.current.style.left = `${pos * PIXELS_PER_SECOND}px`;
+      if (headRef.current) headRef.current.style.left = `${pos * pixelsPerSecond}px`;
       if (readout?.current) {
         readout.current.textContent = `${clock(pos, 1)} / ${clock(totalSeconds, 1)}`;
       }
       // Keep the playhead in sight while it plays through a long timeline.
       const scroller = scrollRef.current;
       if (playing && scroller) {
-        const x = pos * PIXELS_PER_SECOND;
+        const x = pos * pixelsPerSecond;
         if (x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth - 40) {
           scroller.scrollLeft = Math.max(0, x - 40);
         }
@@ -393,31 +415,31 @@ export function Timeline(p: TimelineProps) {
     };
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [previewing, playing, getPosition, totalSeconds, readout]);
+  }, [previewing, playing, getPosition, totalSeconds, readout, pixelsPerSecond]);
 
   const divisions: number[] = [];
-  for (let t = 0; t <= viewSeconds; t += DIVISION_SECONDS) divisions.push(t);
+  for (let t = 0; t <= viewSeconds; t += division) divisions.push(t);
 
   const scrubbing = useRef(false);
   const seekFromRuler = (e: PointerEvent<HTMLDivElement>) => {
     const box = e.currentTarget.getBoundingClientRect();
-    p.onSeek(Math.max(0, (e.clientX - box.left) / PIXELS_PER_SECOND));
+    p.onSeek(Math.max(0, (e.clientX - box.left) / pixelsPerSecond));
   };
 
-  const contentWidth = viewSeconds * PIXELS_PER_SECOND;
+  const contentWidth = viewSeconds * pixelsPerSecond;
 
   return (
     <div>
       <div ref={scrollRef} className="no-scrollbar overflow-x-auto">
         <div className="relative" style={{ width: `${contentWidth}px` }}>
-          {/* Time scale: a label every 10 seconds, a small tick every second.
+          {/* Time scale: a label per division (10 s, or 15 s on phones), a small tick every second.
             Click or drag on it to move the playhead. */}
           <div
             className="relative mb-1.5 h-6 cursor-pointer touch-none select-none border-b border-border font-mono text-[10px] text-muted-foreground"
             title="Click or drag to move the playhead"
             style={{
               backgroundImage: "linear-gradient(to right, var(--border) 1px, transparent 1px)",
-              backgroundSize: `${PIXELS_PER_SECOND}px 5px`,
+              backgroundSize: `${pixelsPerSecond}px 5px`,
               backgroundRepeat: "repeat-x",
               backgroundPosition: "left bottom",
             }}
@@ -436,7 +458,7 @@ export function Timeline(p: TimelineProps) {
               <span
                 key={t}
                 className="pointer-events-none absolute bottom-0 flex h-full items-end border-l border-muted-foreground/60 pb-1 pl-1 leading-none"
-                style={{ left: `${t * PIXELS_PER_SECOND}px` }}
+                style={{ left: `${t * pixelsPerSecond}px` }}
               >
                 {clock(t)}
               </span>

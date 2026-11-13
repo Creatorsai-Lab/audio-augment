@@ -162,7 +162,9 @@ ol {
 }
 .brand {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
+  white-space: nowrap;
   gap: 0.625rem;
   font-size: 17px;
   font-weight: 600;
@@ -589,5 +591,30 @@ h3 {
 @media (min-width: 960px) {
   .uses {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Phones: a slightly smaller lab button, so the logo keeps to one line. */
+@media (max-width: 479px) {
+  .lab-cta {
+    height: 2rem;
+    gap: 0.3rem;
+    padding-inline: 0.6rem;
+    font-size: 12px;
+  }
+}
+@media (max-width: 479px) {
+  .brand {
+    gap: 0.5rem;
+    font-size: 15px;
+  }
+  .brand .serif {
+    font-size: 18px;
+  }
+}
+/* The very narrowest phones: drop the button's arrow to save room. */
+@media (max-width: 359px) {
+  .lab-cta .go {
+    display: none;
   }
 }
