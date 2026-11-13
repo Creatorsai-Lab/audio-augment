@@ -25,8 +25,8 @@ function drawWave(canvas: HTMLCanvasElement, buffer: AudioBuffer | null) {
   if (!buffer || w === 0) return;
   const data = buffer.getChannelData(0);
   const step = Math.max(1, Math.floor(data.length / w));
-  // Every waveform in the app is drawn in the theme's primary colour.
-  ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--primary").trim() || "#c75d3a";
+  // Every waveform in the app is drawn in the theme's --ring colour.
+  ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--ring").trim() || "#f88a5e";
   for (let x = 0; x < w; x++) {
     let min = 1;
     let max = -1;
@@ -106,7 +106,7 @@ export function Waveform({
 
   return (
     <div
-      className={`relative h-17 w-full touch-none overflow-hidden rounded-md bg-muted/60 ${buffer ? "cursor-pointer" : ""}`}
+      className={`relative h-20 w-full touch-none overflow-hidden rounded-md bg-muted/60 ${buffer ? "cursor-pointer" : ""}`}
       title={buffer ? "Click or drag to seek" : undefined}
       onPointerDown={(e) => {
         if (!buffer) return;

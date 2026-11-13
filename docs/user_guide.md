@@ -127,7 +127,7 @@ Ten faders from 31 Hz to 16 kHz, each ±12 dB. Drag a fader up to boost that ban
 |---|---|---|
 | **Compressor** | 0 – 1 | Evens out loud and quiet parts |
 | **Warmth** | 0 – 1 | Gentle saturation for a fuller tone |
-| **Output** | −12 to +12 dB | Final volume |
+| **Volume** | 10% – 200% | Final loudness. 100% leaves it unchanged; above 100% is louder, below is quieter |
 
 ### Space
 
@@ -206,4 +206,4 @@ Reverb and echo add a short tail to the end of the file so they can ring out ful
 - **Less is usually more.** Strong noise removal, heavy compression and big EQ boosts all make a voice sound processed.
 - **Clean before you augment.** Effects such as compression make background noise louder, so remove noise first and set the source to **Cleaned**.
 - **Long files need memory.** Very long recordings may be too much for some phones; a computer works best for those.
-- **Watch the level.** Several boosts stacked together can make the export distort. If it sounds crunchy, lower **Output**.
+- **Watch the level.** Several boosts stacked together can make the export distort. If it sounds crunchy, lower **Volume**.

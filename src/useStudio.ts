@@ -48,7 +48,7 @@ export const PRESETS: Record<string, Partial<Settings>> = {
     eq1k: 2,
     eq4k: 3,
     eq8k: 2,
-    output: 1,
+    volume: 1.1,
   },
 };
 
@@ -64,7 +64,7 @@ const AUGMENTATION_KEYS = [
   "chorus",
   "compressor",
   "saturation",
-  "output",
+  "volume",
   "reverb",
   "reverbSize",
   "delay",

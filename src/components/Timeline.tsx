@@ -37,7 +37,7 @@ function ClipWave({ buffer, start, end }: { buffer: AudioBuffer; start: number; 
       // Look at a bounded number of samples per column so redrawing while a
       // trim bar is dragged stays instant even for very long files.
       const stride = Math.max(1, Math.floor(perPixel / 48));
-      ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--primary").trim() || "#c75d3a";
+      ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--ring").trim() || "#f88a5e";
       for (let x = 0; x < w; x++) {
         const from = start + Math.floor(x * perPixel);
         const to = Math.max(from + 1, start + Math.floor((x + 1) * perPixel));
@@ -146,7 +146,7 @@ function Lane({ track, view, snapPoints, highlighted, onActivate, onChange, onSe
   return (
     <div
       ref={laneRef}
-      className="relative h-[5.5rem] touch-pan-x rounded-md bg-muted/60"
+      className="relative h-30 touch-pan-x rounded-md bg-muted/60"
       onPointerDown={(e) => {
         // Empty lane space moves the playhead.
         const box = e.currentTarget.getBoundingClientRect();
@@ -378,7 +378,7 @@ function ScrollBar(p: {
 
   return (
     <div
-      className="group relative mt-2.5 h-3 cursor-pointer touch-none rounded-full bg-muted"
+      className="group relative mt-2.5 h-2 cursor-pointer touch-none rounded-full bg-muted"
       title="Drag to scroll the timeline"
       onPointerDown={(e) => {
         const el = scroller.current;

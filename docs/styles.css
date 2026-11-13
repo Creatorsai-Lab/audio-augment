@@ -17,7 +17,7 @@
   --border: #2a2c30;
   --primary: #ff7a45;
   --primary-foreground: #160f0b;
-  --grid-line: rgb(255 255 255 / 0.045);
+  --trim: #ffb53c;
   --lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -24px rgb(0 0 0 / 0.8);
   --mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -171,6 +171,11 @@ ol {
 .brand .serif {
   font-size: 20px;
 }
+.brand img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
 .top-links {
   display: flex;
   align-items: center;
@@ -194,68 +199,11 @@ ol {
   color: var(--foreground);
 }
 
-/* The lab is the page's one call to action in the header. */
-.lab {
-  display: inline-flex;
-  height: 2.25rem;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  padding-inline: 0.75rem;
-  color: var(--primary);
-  font-size: 13px;
-  font-weight: 600;
-  transition:
-    background-color 0.15s,
-    color 0.15s,
-    border-color 0.15s;
-}
-.lab:hover {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-.pulse {
-  position: relative;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentColor;
-}
-.pulse::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: currentColor;
-  animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-@keyframes ping {
-  75%,
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-
 /* ── Hero ── */
 
 .hero {
   position: relative;
   overflow: hidden;
-}
-.grid-paper {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 25%, #000 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 25%, #000 30%, transparent 75%);
 }
 .hero-inner {
   position: relative;
@@ -488,8 +436,158 @@ h3 {
   html {
     scroll-behavior: auto;
   }
-  .hero-inner,
-  .pulse::after {
+  .hero-inner {
     animation: none;
+  }
+}
+
+/* ── "Creators AI Lab" call to action ── */
+.lab-cta {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding-inline: 0.8rem;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* dark fill inside the border, moving gradient on the border itself */
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(
+        90deg,
+        var(--primary),
+        var(--trim),
+        #fff1d6,
+        var(--trim),
+        var(--primary),
+        var(--trim),
+        #fff1d6,
+        var(--trim),
+        var(--primary)
+      )
+      border-box;
+  background-size:
+    100% 100%,
+    200% 100%;
+  box-shadow: 0 0 18px -6px var(--primary);
+  animation: lab-flow 4s linear infinite;
+  transition:
+    box-shadow 0.2s,
+    transform 0.15s;
+}
+.lab-cta:hover {
+  box-shadow: 0 0 26px -3px var(--primary);
+  transform: translateY(-1px);
+}
+.lab-cta:active {
+  transform: scale(0.97);
+}
+.lab-cta .spark {
+  color: var(--trim);
+  animation: lab-twinkle 1.8s ease-in-out infinite;
+}
+.lab-cta .go {
+  color: var(--muted-foreground);
+  transition:
+    transform 0.2s,
+    color 0.2s;
+}
+.lab-cta:hover .go {
+  color: var(--primary);
+  transform: translate(2px, -2px);
+}
+@keyframes lab-flow {
+  to {
+    /* the gradient repeats twice, so one container-width shift loops seamlessly */
+    background-position:
+      0 0,
+      100% 0;
+  }
+}
+@keyframes lab-twinkle {
+  50% {
+    transform: scale(0.7) rotate(45deg);
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-cta,
+  .lab-cta .spark {
+    animation: none;
+  }
+}
+
+/* ── What you can do ── */
+.uses {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem 2rem;
+  margin-top: 1.5rem;
+}
+.uses > div {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
+.uses p {
+  margin-top: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+}
+
+/* ── FAQ ── */
+.faq {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.faq details {
+  border-bottom: 1px solid var(--border);
+}
+.faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.95rem;
+  cursor: pointer;
+  font-weight: 500;
+  list-style: none;
+}
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+.faq summary::after {
+  content: "+";
+  flex-shrink: 0;
+  color: var(--primary);
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+.faq details[open] summary::after {
+  transform: rotate(45deg);
+}
+.faq summary:hover {
+  color: var(--primary);
+}
+.faq details p {
+  max-width: 46rem;
+  padding-bottom: 1.1rem;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+@media (min-width: 640px) {
+  .uses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 960px) {
+  .uses {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

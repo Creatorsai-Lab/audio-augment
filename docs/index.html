@@ -5,35 +5,159 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- SEO -->
-    <title>Audio Augment | Audio Cleaner and Editor</title>
+    <title>Audio Augment — Free Online Audio Trimmer, Noise Remover & Voice Editor</title>
     <meta
       name="description"
-      content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips."
+      content="Trim and join audio, remove background noise, change speed and volume, and add voice effects — free, in your browser, with nothing uploaded. Works with MP3 and WAV."
     />
     <meta
       name="keywords"
-      content="audio noise removal, remove background noise, clean audio, audio editor, audio trimmer, voice cleanup, noise reduction, offline audio tool, audio augmentation"
+      content="audio trimmer, audio cutter, audio joiner, remove background noise from audio, noise remover, voice cleaner, change audio speed, change audio volume, audio equalizer, voice effects, online audio editor, free audio editor, mp3 editor"
     />
     <meta name="author" content="Creators AI Lab" />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0f1011" />
 
     <!-- Open Graph -->
-    <meta property="og:title" content="Audio Augment | Audio Cleaner and Editor" />
+    <meta
+      property="og:title"
+      content="Audio Augment — Free Online Audio Trimmer, Noise Remover & Voice Editor"
+    />
     <meta
       property="og:description"
-      content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips."
+      content="Trim and join audio, remove background noise, change speed and volume, and add voice effects — free, in your browser, with nothing uploaded. Works with MP3 and WAV."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://audio-augment.vercel.app/audio_augment_studio.png" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Audio Augment | Audio Cleaner and Editor" />
+    <meta
+      name="twitter:title"
+      content="Audio Augment — Free Online Audio Trimmer, Noise Remover & Voice Editor"
+    />
     <meta
       name="twitter:description"
-      content="A fast, simple, and precise audio editing studio built for creators and artists. Clean and edit your tracks effortlessly right at your fingertips."
+      content="Trim and join audio, remove background noise, change speed and volume, and add voice effects — free, in your browser, with nothing uploaded. Works with MP3 and WAV."
     />
+
+    <link rel="canonical" href="https://audio-augment.vercel.app/" />
+    <meta property="og:url" content="https://audio-augment.vercel.app/" />
+    <meta property="og:site_name" content="Audio Augment" />
+    <meta
+      property="og:image:alt"
+      content="The Audio Augment studio with a timeline of trimmed audio clips"
+    />
+    <meta
+      name="twitter:image"
+      content="https://audio-augment.vercel.app/audio_augment_studio.png"
+    />
+
+    <!-- Structured data: the app itself, and the FAQ shown on this page -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Audio Augment",
+        "url": "https://audio-augment.vercel.app/",
+        "description": "Trim and join audio, remove background noise, change speed and volume, and add voice effects — free, in your browser, with nothing uploaded. Works with MP3 and WAV.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any (web browser), Windows",
+        "browserRequirements": "Requires a modern browser with Web Audio support",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Trim, cut and join audio",
+          "Remove background noise, hiss and breaths",
+          "Change speed without changing pitch",
+          "Change volume",
+          "10-band equaliser",
+          "Pitch, harmony, chorus, reverb and echo effects",
+          "MP3 export"
+        ],
+        "screenshot": "https://audio-augment.vercel.app/audio_augment_studio.png",
+        "author": {
+          "@type": "Organization",
+          "name": "Creators AI Lab",
+          "url": "https://creatorsai-lab.github.io/"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is Audio Augment free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. It is free and open source, with no account, no watermark and no time limit."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my audio uploaded anywhere?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Everything is processed on your own device, inside your browser. Your recordings never leave it."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which audio formats can I use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can open MP3 and WAV files. Results are saved as 192 kbps MP3."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I remove background noise from a recording?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Upload the recording, go to Remove Noise and press Remove noise. Use the Before and After switch to compare, adjust the Noise, Hiss, Breaths and Sibilance sliders if needed, then download the cleaned audio."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I trim an audio file or cut a part out?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "In the Trim section, drag the yellow bar at either end of a clip to trim it. To cut a part out of the middle, duplicate the clip, trim one copy to the part before and the other to the part after, then slide them together."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I join two audio files into one?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Use Add audio to bring in a second file, drag it so it starts where the first one ends (the edges snap together), and download the combined audio."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I change the speed without changing the pitch?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Select a clip and use Speed to play it anywhere from half speed to double speed. The voice keeps its natural pitch."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does it work on a phone, and is there a desktop app?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "It works in modern mobile browsers, although very long recordings need more memory than some phones have. There is also a Windows desktop app that works without an internet connection."
+            }
+          }
+        ]
+      }
+    </script>
 
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="styles.css" />
@@ -43,15 +167,7 @@
     <header class="top">
       <div class="wrap top-inner">
         <a href="/" class="brand" aria-label="Audio Augment home">
-          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-            <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" stroke-width="1.25" />
-            <path
-              d="M8.5 11v4M13 7.5v11M17.5 10v6"
-              stroke="var(--primary)"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
+          <img src="/audio_augment_logo.webp" alt="" width="28" height="28" />
           <span>Audio <span class="serif">Augment</span></span>
         </a>
         <nav class="top-links" aria-label="Main">
@@ -70,14 +186,24 @@
             </svg>
           </a>
           <a
-            class="lab"
+            class="lab-cta"
             href="https://creatorsai-lab.github.io/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span class="pulse" aria-hidden="true"></span>
+            <svg
+              class="spark"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />
+            </svg>
             Creators AI Lab
             <svg
+              class="go"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -98,7 +224,6 @@
     <main>
       <!-- HERO -->
       <section class="hero">
-        <div class="grid-paper" aria-hidden="true"></div>
         <div class="wrap hero-inner">
           <p class="label">Creators AI Lab · Voice studio</p>
           <h1>Make a recording <span class="serif">sound finished.</span></h1>
@@ -191,6 +316,52 @@
       </section>
 
       <!-- GET IT -->
+      <section class="wrap block" aria-labelledby="uses-heading">
+        <p class="label">What you can do</p>
+        <h2 id="uses-heading">A free online audio editor <span class="serif">for voice.</span></h2>
+        <div class="uses">
+          <div>
+            <h3>Trim and cut audio</h3>
+            <p>
+              Drag the edges of a clip to cut silence, mistakes or dead air from an MP3 or WAV
+              recording.
+            </p>
+          </div>
+          <div>
+            <h3>Join audio files</h3>
+            <p>
+              Place several recordings end to end on the timeline and download them as one file.
+            </p>
+          </div>
+          <div>
+            <h3>Remove background noise</h3>
+            <p>
+              Reduce room noise, hiss, breaths and harsh S sounds, and compare before and after.
+            </p>
+          </div>
+          <div>
+            <h3>Change speed and volume</h3>
+            <p>
+              Speed a clip up or slow it down without changing its pitch, and set the volume from
+              10% to 200%.
+            </p>
+          </div>
+          <div>
+            <h3>Equaliser and voice effects</h3>
+            <p>
+              Shape the tone with a 10-band equaliser, then add compression, reverb, echo, pitch or
+              harmony.
+            </p>
+          </div>
+          <div>
+            <h3>Private by design</h3>
+            <p>
+              The audio is processed in your browser. Nothing is uploaded, and no account is needed.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section class="wrap block" id="download" aria-labelledby="get-heading">
         <p class="label">Get it</p>
         <h2 id="get-heading">In your browser, or <span class="serif">on your desktop.</span></h2>
@@ -222,6 +393,66 @@ cd audio-augment
 npm install
 npm run dev</code></pre>
           </div>
+        </div>
+      </section>
+
+      <section class="wrap block" id="faq" aria-labelledby="faq-heading">
+        <p class="label">FAQ</p>
+        <h2 id="faq-heading">Questions, <span class="serif">answered.</span></h2>
+        <div class="faq">
+          <details>
+            <summary>Is Audio Augment free?</summary>
+            <p>Yes. It is free and open source, with no account, no watermark and no time limit.</p>
+          </details>
+          <details>
+            <summary>Is my audio uploaded anywhere?</summary>
+            <p>
+              No. Everything is processed on your own device, inside your browser. Your recordings
+              never leave it.
+            </p>
+          </details>
+          <details>
+            <summary>Which audio formats can I use?</summary>
+            <p>You can open MP3 and WAV files. Results are saved as 192 kbps MP3.</p>
+          </details>
+          <details>
+            <summary>How do I remove background noise from a recording?</summary>
+            <p>
+              Upload the recording, go to Remove Noise and press Remove noise. Use the Before and
+              After switch to compare, adjust the Noise, Hiss, Breaths and Sibilance sliders if
+              needed, then download the cleaned audio.
+            </p>
+          </details>
+          <details>
+            <summary>How do I trim an audio file or cut a part out?</summary>
+            <p>
+              In the Trim section, drag the yellow bar at either end of a clip to trim it. To cut a
+              part out of the middle, duplicate the clip, trim one copy to the part before and the
+              other to the part after, then slide them together.
+            </p>
+          </details>
+          <details>
+            <summary>Can I join two audio files into one?</summary>
+            <p>
+              Yes. Use Add audio to bring in a second file, drag it so it starts where the first one
+              ends (the edges snap together), and download the combined audio.
+            </p>
+          </details>
+          <details>
+            <summary>Can I change the speed without changing the pitch?</summary>
+            <p>
+              Yes. Select a clip and use Speed to play it anywhere from half speed to double speed.
+              The voice keeps its natural pitch.
+            </p>
+          </details>
+          <details>
+            <summary>Does it work on a phone, and is there a desktop app?</summary>
+            <p>
+              It works in modern mobile browsers, although very long recordings need more memory
+              than some phones have. There is also a Windows desktop app that works without an
+              internet connection.
+            </p>
+          </details>
         </div>
       </section>
     </main>

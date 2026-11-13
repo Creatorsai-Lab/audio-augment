@@ -33,12 +33,11 @@
   --primary: #ff7a45; /* the one signal colour: actions, waveforms, values */
   --primary-foreground: #160f0b;
   --secondary: #34363c; /* unfilled slider tracks */
-  --ring: #f88a5e;
+  --ring: #f88a5e; /* focus rings, and the waveforms (softer than --primary) */
   --trim: #ffb53c; /* trim handles on timeline clips */
   --done: #57d6a8; /* completed-stage ticks */
-  --grid-line: rgb(255 255 255 / 0.045);
   --lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -24px rgb(0 0 0 / 0.8);
-  scrollbar-gutter: stable;  /* Reserve the scrollbar's spac */
+  scrollbar-gutter: stable; /* Reserve the scrollbar's spac */
 }
 
 @layer base {
@@ -80,7 +79,7 @@
 
 /* Serif italic accent used in the wordmark and headlines. */
 .serif-accent {
-  font-family: 'Times New Roman', Times, serif;
+  font-family: "Times New Roman", Times, serif;
   font-style: italic;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -112,16 +111,6 @@
   .stage-title {
     font-size: 1.75rem;
   }
-}
-
-/* Faint graph-paper grid behind the upload zone. */
-.grid-paper {
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%);
 }
 
 /* Swipeable rows (preset chips) scroll without showing a scrollbar. */
@@ -201,6 +190,86 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rise-in {
+    animation: none;
+  }
+}
+
+/* ── "Creators AI Lab" call to action ── */
+.lab-cta {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding-inline: 0.8rem;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* dark fill inside the border, moving gradient on the border itself */
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(
+        90deg,
+        var(--primary),
+        var(--trim),
+        #fff1d6,
+        var(--trim),
+        var(--primary),
+        var(--trim),
+        #fff1d6,
+        var(--trim),
+        var(--primary)
+      )
+      border-box;
+  background-size:
+    100% 100%,
+    200% 100%;
+  box-shadow: 0 0 18px -6px var(--primary);
+  animation: lab-flow 4s linear infinite;
+  transition:
+    box-shadow 0.2s,
+    transform 0.15s;
+}
+.lab-cta:hover {
+  box-shadow: 0 0 26px -3px var(--primary);
+  transform: translateY(-1px);
+}
+.lab-cta:active {
+  transform: scale(0.97);
+}
+.lab-cta .spark {
+  color: var(--trim);
+  animation: lab-twinkle 1.8s ease-in-out infinite;
+}
+.lab-cta .go {
+  color: var(--muted-foreground);
+  transition:
+    transform 0.2s,
+    color 0.2s;
+}
+.lab-cta:hover .go {
+  color: var(--primary);
+  transform: translate(2px, -2px);
+}
+@keyframes lab-flow {
+  to {
+    /* the gradient repeats twice, so one container-width shift loops seamlessly */
+    background-position:
+      0 0,
+      100% 0;
+  }
+}
+@keyframes lab-twinkle {
+  50% {
+    transform: scale(0.7) rotate(45deg);
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-cta,
+  .lab-cta .spark {
     animation: none;
   }
 }

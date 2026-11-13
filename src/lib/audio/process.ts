@@ -31,7 +31,8 @@ export type Settings = {
   delayTime: number;
   delayFeedback: number;
   chorus: number;
-  output: number;
+  /** Final volume as a multiplier: 1 = 100% (unchanged), 0.1 – 2. */
+  volume: number;
 };
 
 /** Standard 10-band graphic EQ frequencies and their descriptions. */
@@ -74,7 +75,7 @@ export const defaultSettings: Settings = {
   delayTime: 0.15,
   delayFeedback: 0.3,
   chorus: 0,
-  output: 0,
+  volume: 1,
 };
 
 function makeImpulse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
@@ -423,7 +424,7 @@ export function buildRack(ctx: BaseAudioContext, initial: Settings, live: boolea
       else impulseTimer = setTimeout(() => setImpulse(s.reverbSize), 120);
     }
 
-    set(output.gain, Math.pow(10, s.output / 20));
+    set(output.gain, s.volume);
   };
 
   apply(initial, true);

@@ -51,8 +51,8 @@ export function Studio() {
       </main>
 
       <footer className="border-t border-border">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-muted-foreground sm:px-6">
-          © 2026 Audio Augment · Creators AI Lab · Everything runs on your device.
+        <p className="mx-auto max-w-6xl px-4 py-5 text-center text-sm text-foreground sm:px-6">
+          © 2026 Audio Augment · Creators AI Lab
         </p>
       </footer>
     </div>
@@ -70,46 +70,46 @@ function Header() {
           className="flex items-center gap-2.5"
           aria-label="Audio Augment home"
         >
-          {/* Mark: three level bars inside a ring */}
-          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-            <circle cx="13" cy="13" r="12" fill="none" stroke="currentColor" strokeWidth="1.25" />
-            <path
-              d="M8.5 11v4M13 7.5v11M17.5 10v6"
-              stroke="var(--primary)"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span className="text-[17px] font-semibold tracking-tight">
-            Audio <span className="serif-accent text-[20px]">Augment</span>
-          </span>
+          <img
+            src={`${import.meta.env.BASE_URL}audio_augment_logo.webp`}
+            alt=""
+            width={28}
+            height={28}
+            className="h-7 w-7 object-contain"
+          />
+          <span className="text-lg font-bold tracking-tight select-none">Audio Augment</span>
         </a>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-4">
           <a
             href="https://github.com/Creatorsai-Lab/audio-augment"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Audio Augment on GitHub"
             title="Source code on GitHub"
-            className="hidden h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
+            className="hidden h-10 w-10 items-center justify-center rounded-lg text-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
           >
             <GitHubMark />
           </a>
-          {/* The lab is the page's one call to action: the only filled-accent
-              element in the header, with a live dot to draw the eye. */}
+          {/* The lab is the page's one call to action; see .lab-cta in styles.css. */}
           <a
             href="https://creatorsai-lab.github.io/"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex h-9 items-center gap-2 rounded-full border border-primary/50 bg-primary/10 pl-3 pr-3 text-[13px] font-semibold text-primary transition hover:border-primary hover:bg-primary hover:text-primary-foreground active:scale-[0.97]"
+            className="lab-cta"
           >
-            <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70 group-hover:bg-primary-foreground" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary group-hover:bg-primary-foreground" />
-            </span>
+            <svg
+              className="spark"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />
+            </svg>
             Creators AI Lab
-            <span className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
+            <span className="go">
               <Icon name="external" size={14} />
             </span>
           </a>
@@ -132,11 +132,13 @@ function SectionHead(p: {
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-  <div className="flex flex-wrap items-baseline gap-x-2">
-  <p className="font-mono stage-title text-lg text-primary">{p.number}</p>
-  <h2 id={p.id} className="stage-title text-lg">{p.title}</h2>
-  <p className="mt-1 w-full text-sm text-muted-foreground">{p.blurb}</p>
-</div>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <p className="font-mono stage-title text-lg text-primary">{p.number}</p>
+        <h2 id={p.id} className="stage-title text-lg">
+          {p.title}
+        </h2>
+        <p className="mt-1 w-full text-sm text-muted-foreground">{p.blurb}</p>
+      </div>
       {p.children}
       {p.status && (
         <p className="w-full font-mono text-xs text-muted-foreground" aria-live="polite">
@@ -285,21 +287,22 @@ function Upload({ s, onFile }: { s: StudioState; onFile: (file: File | undefined
   }
 
   return (
-    <section className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border px-5 py-5 text-center transition hover:border-primary/70 sm:py-12" aria-label="Upload" {...drop}>
-        <div className="grid-paper pointer-events-none absolute inset-0" />
+    <section aria-label="Upload" {...drop}>
+      <label className="group relative block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-secondary px-5 text-center transition hover:border-primary/70 sm:py-6">
         <div className="relative">
-
-          <p className="mt-6 text-lg font-semibold tracking-tight sm:text-xl">
-            Start with a <span className="serif-accent text-[1.2em]"> Audio</span>
+          <p className="text-lg font-semibold tracking-tight sm:text-xl">
+            Start with a <span className="serif-accent"> Audio</span>
+          </p>
+          <p className=" text-[13px] text-muted-foreground" aria-live="polite">
+            {notice || "Drag drop a file anywhere · MP3 or WAV"}
           </p>
           <span className={`${button.primary} mt-6 w-full sm:w-auto`}>
             <Icon name="upload" /> Upload audio
           </span>
-          <p className="mt-3 text-[13px] text-muted-foreground" aria-live="polite">
-            {notice || "OR drag drop a file anywhere · MP3 or WAV"}
-          </p>
+          
         </div>
         {input}
+      </label>
     </section>
   );
 }
@@ -461,7 +464,10 @@ function Trim({ s, onAdd }: { s: StudioState; onAdd: (file: File | undefined) =>
           />
         </div>
       </div>
-      <p className="text-sm my-3 text-accent"><b>Usage:</b> Pull the audio track edge yellow bar to trim • Drag the track to move or reposition it • Tap the time scale to move the playhead</p>
+      <p className="text-sm my-3 text-accent">
+        <b>Usage:</b> Pull the audio track edge yellow bar to trim • Drag the track to move or
+        reposition it • Tap the time scale to move the playhead
+      </p>
     </section>
   );
 }
@@ -571,7 +577,7 @@ function RemoveNoise({ s }: { s: StudioState }) {
             />
           </WaveBlock>
           <WaveBlock
-            label="After"
+            label="After (Cleaned)"
             {...(s.cleaned ? {} : { note: "Press Remove noise to hear the difference" })}
           >
             <Waveform
@@ -660,33 +666,28 @@ function Augment({ s }: { s: StudioState }) {
       </SectionHead>
 
       <div className="panel p-5">
-        {/* <WaveBlock
-          label={s.augFresh ? "Rendered result" : "Preview"}
-          note={s.augFresh ? "" : "Press play: controls change the sound as you move them"}
-        > */}
-          <Waveform
-            buffer={s.augmented?.buffer ?? s.augSource}
-            dimmed={!s.augFresh}
-            active={s.transport.track === "augmented"}
-            getPosition={s.getPosition}
-            onSeek={(t) => s.seek("augmented", t)}
-          />
-
+        <Waveform
+          buffer={s.augmented?.buffer ?? s.augSource}
+          dimmed={!s.augFresh}
+          active={s.transport.track === "augmented"}
+          getPosition={s.getPosition}
+          onSeek={(t) => s.seek("augmented", t)}
+        />
 
         <div className="no-scrollbar -mx-1 mt-4 flex items-center gap-2 overflow-x-auto px-1 pb-1">
-          <span className="label-caps shrink-0 pr-1">Presets</span>
+          <span className="label-caps text-sm">Presets</span>
           {Object.keys(PRESETS).map((name) => (
             <button
               key={name}
               onClick={() => s.applyPreset(name)}
-              className="h-9 shrink-0 rounded-full border border-border px-4 text-[13px] transition hover:border-primary hover:text-primary active:scale-[0.97]"
+              className="h-9 shrink-0 rounded-full border border-border px-4 text-sm transition hover:border-primary hover:text-primary active:scale-[0.97]"
             >
               {name}
             </button>
           ))}
           <button
             onClick={s.resetAugmentation}
-            className="h-9 shrink-0 rounded-full px-3 text-[13px] text-muted-foreground transition hover:text-foreground"
+            className=" shrink-0 rounded-full px-3 py-2 text-sm text-foreground/80 bg-muted-foreground/70 transition hover:text-foreground"
           >
             Reset
           </button>
@@ -789,13 +790,13 @@ function Augment({ s }: { s: StudioState }) {
               onChange={(x) => s.set("saturation", x)}
             />
             <Dial
-              label="Output"
-              value={v.output}
-              min={-12}
-              max={12}
-              step={0.5}
-              unit=" dB"
-              onChange={(x) => s.set("output", x)}
+              label="Volume"
+              value={Math.round(v.volume * 100)}
+              min={10}
+              max={200}
+              step={5}
+              unit="%"
+              onChange={(x) => s.set("volume", x / 100)}
             />
           </div>
         </Module>
