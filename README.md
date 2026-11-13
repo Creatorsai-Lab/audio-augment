@@ -7,7 +7,7 @@ A very simple and fast audio editing studio that works with great precision. It 
 
 ### Audio Augment Interface Screenshot:
 
-![Audio Augment Interface](public/audio_augment_interface_screenshot.png)
+![Audio Augment Interface](public/audio_augment_studio.png)
 
 ## What it does
 
